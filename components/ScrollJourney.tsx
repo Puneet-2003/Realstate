@@ -7,14 +7,11 @@ import Lenis from "lenis";
 import {
   Volume2,
   VolumeX,
-  Compass,
   ArrowDown,
-  Layers,
   Sparkles,
   Info,
   X,
   ArrowRight,
-  Maximize2,
 } from "lucide-react";
 
 if (typeof window !== "undefined") {
@@ -67,7 +64,7 @@ const CHAPTERS: Chapter[] = [
     location: "Grand Double-Height Foyer",
     description:
       "Motorized glass portals reveal a monumental 32-foot double-height foyer paved with bookmatched Italian Statuario marble and enveloped in warm acoustic cove lighting.",
-    range: [0.38, 0.56],
+    range: [0.38, 0.58],
     specs: ["32ft Finished Ceilings", "Statuario Marble", "Acoustic STC 48"],
   },
   {
@@ -79,7 +76,7 @@ const CHAPTERS: Chapter[] = [
     location: "Reception & Preserved Botanical Atrium",
     description:
       "At the center of the lobby, a sculpted marble reception desk sits beneath bespoke champagne brass chandeliers, accompanied by a signature living bonsai atrium.",
-    range: [0.56, 0.76],
+    range: [0.58, 0.78],
     specs: ["24/7 White-Glove Desk", "Living Bonsai Atrium", "Bespoke Brass Lighting"],
   },
   {
@@ -91,7 +88,7 @@ const CHAPTERS: Chapter[] = [
     location: "The Sky Penthouse — 64th Floor",
     description:
       "Ascending into the upper residential sanctuary reveals continuous panoramic floor-to-ceiling glass, Italian boucle furnishings, bespoke stone kitchens, and twilight sunset horizons.",
-    range: [0.76, 1.0],
+    range: [0.78, 1.0],
     specs: ["360° Sunset Horizon", "12,400 Sq Ft", "Minotti & Boffi Fitments"],
   },
 ];
@@ -112,7 +109,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Triple-Laminated Acoustic Low-E Facade",
     description:
       "Engineered to block 99.4% of urban ambient noise while optimizing solar heat gain and providing crystal-clear chromatic clarity from sunrise to twilight.",
-    targetRange: [0.05, 0.22],
+    targetRange: [0.04, 0.2],
     position: { top: "35%", left: "45%" },
   },
   {
@@ -121,7 +118,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Linear Warm Amber Architectural Lighting",
     description:
       "Concealed 2700K warm LED ribbons bounce indirect golden light across fluted aluminum louvers, welcoming arrivals with residential warmth.",
-    targetRange: [0.22, 0.42],
+    targetRange: [0.2, 0.4],
     position: { top: "30%", left: "50%" },
   },
   {
@@ -130,7 +127,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Bookmatched Honed Statuario Floor",
     description:
       "Hand-selected slabs quarried in Carrara, Italy, honed to a silky low-sheen satin finish that mirrors the ambient ceiling illumination.",
-    targetRange: [0.42, 0.65],
+    targetRange: [0.4, 0.6],
     position: { top: "72%", left: "55%" },
   },
   {
@@ -139,7 +136,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Preserved Specimen Bonsai Garden",
     description:
       "A century-old cultivated Japanese black pine integrated into a recessed granite plinth, bringing organic tranquility into the monumental volume.",
-    targetRange: [0.62, 0.8],
+    targetRange: [0.6, 0.78],
     position: { top: "52%", left: "50%" },
   },
   {
@@ -148,7 +145,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Unobstructed Western Skyline Horizon",
     description:
       "Full-height structural glass mullions frame dramatic twilight sunsets across the metropolitan skyline, complemented by motorized sheer drapery.",
-    targetRange: [0.82, 0.98],
+    targetRange: [0.8, 0.98],
     position: { top: "40%", left: "30%" },
   },
 ];
@@ -159,15 +156,16 @@ interface ScrollJourneyProps {
 
 export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // States
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [loadedCount, setLoadedCount] = useState(0);
-  const [isPreloaded, setIsPreloaded] = useState(false);
+  const [currentFrameNumber, setCurrentFrameNumber] = useState(1);
   const [activeChapterIndex, setActiveChapterIndex] = useState(0);
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [loadedPercent, setLoadedPercent] = useState(0);
 
   // Audio Context Refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -230,7 +228,6 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     const destX = (canvasWidth - destWidth) / 2;
     const destY = (canvasHeight - destHeight) / 2;
 
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.drawImage(imgToDraw, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
   }, []);
 
@@ -242,24 +239,23 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      drawFrame(currentRenderedFrameRef.current);
-    }
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    drawFrame(Math.round(currentRenderedFrameRef.current));
   }, [drawFrame]);
 
-  // Preloading image sequence
+  // Robust Concurrent Image Preloading
   useEffect(() => {
     let isMounted = true;
-    let loaded = 0;
+    let loadedCount = 0;
 
-    // Phase 1: Load first 20 frames immediately for instant rendering
-    const priorityFrames = 20;
+    // Immediately size canvas
+    resizeCanvas();
 
-    const loadFrame = (index: number): Promise<void> => {
+    const loadSingleFrame = (index: number): Promise<void> => {
       return new Promise((resolve) => {
         const img = new Image();
         img.src = getFramePath(index);
@@ -267,10 +263,16 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           if (!isMounted) return resolve();
           imagesRef.current[index] = img;
           loadedFlagsRef.current[index] = true;
-          loaded++;
-          setLoadedCount(loaded);
+          loadedCount++;
+          setLoadedPercent(Math.round((loadedCount / TOTAL_FRAMES) * 100));
+
+          // If frame 0 just loaded, draw it immediately!
           if (index === 0) {
             drawFrame(0);
+          }
+          // If the currently requested frame just loaded, update it
+          if (Math.round(currentRenderedFrameRef.current) === index) {
+            drawFrame(index);
           }
           resolve();
         };
@@ -280,36 +282,26 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
       });
     };
 
-    // Load initial batch
-    const initialPromises = [];
-    for (let i = 0; i < priorityFrames; i++) {
-      initialPromises.push(loadFrame(i));
-    }
-
-    Promise.all(initialPromises).then(() => {
+    // Immediate load of Frame 0
+    loadSingleFrame(0).then(() => {
       if (!isMounted) return;
-      setIsPreloaded(true);
-      resizeCanvas();
-
-      // Phase 2: Progressively load remaining frames
-      let nextIndex = priorityFrames;
-      const loadNextBatch = () => {
-        if (!isMounted || nextIndex >= TOTAL_FRAMES) return;
-        const batchSize = 10;
-        const batchPromises = [];
-        for (let i = 0; i < batchSize && nextIndex < TOTAL_FRAMES; i++, nextIndex++) {
-          batchPromises.push(loadFrame(nextIndex));
-        }
-        Promise.all(batchPromises).then(() => {
-          if (window.requestIdleCallback) {
-            window.requestIdleCallback(loadNextBatch);
-          } else {
-            setTimeout(loadNextBatch, 30);
-          }
-        });
-      };
-      loadNextBatch();
+      drawFrame(0);
     });
+
+    // Load entire sequence in fast concurrent chunks
+    const loadAllFrames = async () => {
+      const concurrency = 16;
+      for (let i = 0; i < TOTAL_FRAMES; i += concurrency) {
+        if (!isMounted) break;
+        const batch = [];
+        for (let j = i; j < i + concurrency && j < TOTAL_FRAMES; j++) {
+          batch.push(loadSingleFrame(j));
+        }
+        await Promise.all(batch);
+      }
+    };
+
+    loadAllFrames();
 
     window.addEventListener("resize", resizeCanvas);
 
@@ -325,12 +317,15 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
       const current = currentRenderedFrameRef.current;
       const target = targetFrameRef.current;
 
-      // Smooth interpolation between frames
       const diff = target - current;
       if (Math.abs(diff) > 0.05) {
-        currentRenderedFrameRef.current = current + diff * 0.18;
-        const frameToDraw = Math.round(currentRenderedFrameRef.current);
-        drawFrame(Math.min(TOTAL_FRAMES - 1, Math.max(0, frameToDraw)));
+        currentRenderedFrameRef.current = current + diff * 0.22;
+        const frameToDraw = Math.min(
+          TOTAL_FRAMES - 1,
+          Math.max(0, Math.round(currentRenderedFrameRef.current))
+        );
+        setCurrentFrameNumber(frameToDraw + 1);
+        drawFrame(frameToDraw);
       }
 
       rafIdRef.current = requestAnimationFrame(renderLoop);
@@ -343,15 +338,16 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     };
   }, [drawFrame]);
 
-  // Setup Lenis Smooth Scroll and GSAP ScrollTrigger
+  // Setup Lenis Smooth Scroll and GSAP ScrollTrigger with ROCK-SOLID PINNING
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
+      gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 0.9,
-      touchMultiplier: 1.4,
+      wheelMultiplier: 0.85,
+      touchMultiplier: 1.5,
     });
     lenisRef.current = lenis;
 
@@ -363,20 +359,22 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     gsap.ticker.add(tickerCallback);
     gsap.ticker.lagSmoothing(0);
 
-    if (containerRef.current) {
+    // Setup GSAP ScrollTrigger with PINNING to lock the stage securely
+    if (containerRef.current && viewportRef.current) {
       ScrollTrigger.create({
         trigger: containerRef.current,
+        pin: viewportRef.current,
         start: "top top",
         end: "bottom bottom",
-        scrub: 0.8,
+        scrub: 0.6,
         onUpdate: (self) => {
           const progress = self.progress;
           setScrollProgress(progress);
 
-          // Update target frame
+          // Calculate target frame
           const target = Math.min(
             TOTAL_FRAMES - 1,
-            Math.max(0, Math.floor(progress * (TOTAL_FRAMES - 1)))
+            Math.max(0, Math.round(progress * (TOTAL_FRAMES - 1)))
           );
           targetFrameRef.current = target;
 
@@ -402,7 +400,9 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
   const toggleAudio = useCallback(() => {
     if (!isAudioEnabled) {
       try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const ctx = new AudioCtx();
         audioContextRef.current = ctx;
 
@@ -412,10 +412,10 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         const gain = ctx.createGain();
 
         osc1.type = "sine";
-        osc1.frequency.setValueAtTime(55, ctx.currentTime); // A1 bass tone
+        osc1.frequency.setValueAtTime(55, ctx.currentTime);
 
         osc2.type = "sine";
-        osc2.frequency.setValueAtTime(110.2, ctx.currentTime); // A2 harmonic
+        osc2.frequency.setValueAtTime(110.2, ctx.currentTime);
 
         gain.gain.setValueAtTime(0.001, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.04, ctx.currentTime + 3);
@@ -459,10 +459,14 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     const containerHeight = containerRef.current.offsetHeight - window.innerHeight;
     const scrollTarget = containerTop + containerHeight * targetProgress;
 
-    window.scrollTo({
-      top: scrollTarget,
-      behavior: "smooth",
-    });
+    if (lenisRef.current) {
+      lenisRef.current.scrollTo(scrollTarget, { duration: 1.5 });
+    } else {
+      window.scrollTo({
+        top: scrollTarget,
+        behavior: "smooth",
+      });
+    }
   };
 
   const activeChapter = CHAPTERS[activeChapterIndex] || CHAPTERS[0];
@@ -471,20 +475,32 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     <div
       ref={containerRef}
       id="journey"
-      className="relative bg-[#050505] text-white"
+      className="relative bg-[#050505] text-white w-full"
       style={{ height: "650vh" }}
     >
-      {/* Pinned Viewport Container */}
-      <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
+      {/* GSAP Pinned Viewport Container (Locks in place for 650vh) */}
+      <div
+        ref={viewportRef}
+        className="w-full h-screen relative overflow-hidden bg-[#050505]"
+      >
         {/* Full-bleed HTML5 Canvas */}
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full object-cover block"
+          className="absolute inset-0 w-full h-full object-cover block z-0"
         />
 
+        {/* Underlying Image Fallback (Guarantees zero blank screen while frames load) */}
+        <div className="absolute inset-0 pointer-events-none z-[-1]">
+          <img
+            src="/sequence/frame-001.jpg"
+            alt="The Lumière Exterior View"
+            className="w-full h-full object-cover"
+          />
+        </div>
+
         {/* Cinematic Vignette & Ambient Glow Overlays */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505]/90 via-transparent to-[#050505]/40" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#050505]/60 via-transparent to-[#050505]/60" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-transparent to-[#050505]/50 z-10" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#050505]/70 via-transparent to-[#050505]/70 z-10" />
 
         {/* Top Telemetry Bar */}
         <div className="absolute top-20 sm:top-24 left-0 right-0 px-6 sm:px-12 flex items-center justify-between text-xs font-mono uppercase tracking-[0.25em] text-white/60 pointer-events-none z-30">
@@ -520,11 +536,11 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
               )}
             </button>
 
-            {/* Frame / Preload Telemetry */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md">
+            {/* Frame Telemetry */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] text-white/40">FRAME</span>
               <span className="text-[10px] text-[#F5F0E8] font-semibold">
-                {String(Math.min(TOTAL_FRAMES, Math.floor(scrollProgress * TOTAL_FRAMES) + 1)).padStart(3, "0")}
+                {String(currentFrameNumber).padStart(3, "0")}
               </span>
               <span className="text-[10px] text-white/30">/ {TOTAL_FRAMES}</span>
             </div>
@@ -569,7 +585,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
 
         {/* Hotspot Inspection Modal / Card */}
         {activeHotspot && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity">
+          <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md transition-opacity">
             <div className="relative max-w-md w-full bg-[#0A0A0C] border border-[#C6A76B]/40 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black text-left animate-in fade-in zoom-in-95 duration-200">
               <button
                 type="button"
@@ -612,30 +628,16 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         {/* Synchronized Storytelling Overlays (Scenes 1 - 5) */}
         <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-end pb-24 sm:pb-28 px-6 sm:px-12 md:px-20 max-w-7xl mx-auto">
           {CHAPTERS.map((chapter, idx) => {
-            const start = chapter.range[0];
-            const end = chapter.range[1];
-            const mid = (start + end) / 2;
-            const distance = Math.abs(scrollProgress - mid);
-            const halfDuration = (end - start) / 2;
-
-            // Fade curve: 1 at center, fading toward 0 at boundaries
-            let opacity = 1 - distance / halfDuration;
-            opacity = Math.max(0, Math.min(1, opacity));
-
-            // Curve opacity for smooth appearance
-            const smoothOpacity = Math.pow(opacity, 1.5);
-            const translateY = (1 - opacity) * 30;
-
-            if (opacity <= 0.01) return null;
+            const isCurrent = activeChapterIndex === idx;
 
             return (
               <div
                 key={chapter.id}
-                style={{
-                  opacity: smoothOpacity,
-                  transform: `translateY(${translateY}px)`,
-                }}
-                className="max-w-3xl transition-transform duration-100 ease-out pointer-events-auto"
+                className={`max-w-3xl transition-all duration-700 ease-out pointer-events-auto ${
+                  isCurrent
+                    ? "opacity-100 translate-y-0 block"
+                    : "opacity-0 translate-y-6 pointer-events-none hidden"
+                }`}
               >
                 {/* Chapter Pre-header */}
                 <div className="flex items-center gap-3 mb-3">
@@ -648,16 +650,16 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 </div>
 
                 {/* Editorial Headline */}
-                <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight leading-[1.08] drop-shadow-lg">
+                <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight leading-[1.08] drop-shadow-2xl">
                   {chapter.title}
                 </h2>
 
                 {/* Supporting Copy */}
-                <p className="mt-3 sm:mt-4 text-base sm:text-lg text-white/85 font-light leading-relaxed max-w-2xl drop-shadow">
+                <p className="mt-3 sm:mt-4 text-base sm:text-lg text-white/90 font-light leading-relaxed max-w-2xl drop-shadow-lg">
                   {chapter.subtitle}
                 </p>
 
-                <p className="hidden md:block mt-2 text-xs sm:text-sm text-white/60 font-light leading-relaxed max-w-xl">
+                <p className="hidden md:block mt-2 text-xs sm:text-sm text-white/70 font-light leading-relaxed max-w-xl">
                   {chapter.description}
                 </p>
 
@@ -666,7 +668,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                   {chapter.specs.map((spec) => (
                     <span
                       key={spec}
-                      className="px-3 py-1 rounded-full text-[11px] font-mono tracking-wider text-white/80 bg-black/50 border border-white/10 backdrop-blur-md"
+                      className="px-3 py-1 rounded-full text-[11px] font-mono tracking-wider text-white/90 bg-black/60 border border-white/15 backdrop-blur-md"
                     >
                       {spec}
                     </span>

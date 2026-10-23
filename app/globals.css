@@ -21,9 +21,9 @@
 }
 
 html, body {
-  background-color: #070709;
-  color: #f5f3ef;
-  overflow-x: hidden;
+  background-color: #050505;
+  color: #f5f0e8;
+  overflow-x: clip;
 }
 
 /* Custom subtle luxury scrollbar */

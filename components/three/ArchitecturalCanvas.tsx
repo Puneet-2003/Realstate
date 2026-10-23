@@ -3,7 +3,7 @@
 import React, { useRef, useState, Suspense } from "react";
 import Image from "next/image";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Float, Html } from "@react-three/drei";
+import { OrbitControls, Float } from "@react-three/drei";
 import * as THREE from "three";
 import { Sun, Moon, Sunset, RotateCw, Sparkles } from "lucide-react";
 
@@ -202,27 +202,14 @@ function ModernVillaModel({
         return (
           <group key={spot.id} position={spot.position}>
             <Float speed={2} rotationIntensity={0.2} floatIntensity={0.3}>
-              <mesh onClick={() => onSelectHotspot(spot.id)}>
-                <sphereGeometry args={[0.12, 16, 16]} />
+              <mesh onClick={() => onSelectHotspot(spot.id)} className="cursor-pointer">
+                <sphereGeometry args={[0.16, 16, 16]} />
                 <meshStandardMaterial
                   color={isSelected ? "#d4af37" : "#ffffff"}
                   emissive={isSelected ? "#d4af37" : "#c5a880"}
-                  emissiveIntensity={isSelected ? 1.5 : 0.8}
+                  emissiveIntensity={isSelected ? 2 : 1}
                 />
               </mesh>
-              <Html distanceFactor={8} position={[0, 0.25, 0]} center>
-                <button
-                  type="button"
-                  onClick={() => onSelectHotspot(spot.id)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 backdrop-blur-md cursor-pointer ${
-                    isSelected
-                      ? "bg-[#c5a880] text-black shadow-lg shadow-[#c5a880]/30 scale-105"
-                      : "bg-black/75 text-zinc-200 border border-white/20 hover:border-[#c5a880] hover:text-[#c5a880]"
-                  }`}
-                >
-                  {spot.name}
-                </button>
-              </Html>
             </Float>
           </group>
         );
@@ -363,6 +350,24 @@ export default function ArchitecturalCanvas({
           <p className="text-xs text-zinc-300 mt-1 leading-relaxed">{activeSpotData.description}</p>
         </div>
       )}
+
+      {/* Hotspots Quick Switcher */}
+      <div className="absolute bottom-4 right-4 z-10 hidden sm:flex items-center gap-2">
+        {HOTSPOTS.map((spot) => (
+          <button
+            key={spot.id}
+            type="button"
+            onClick={() => handleSelectHotspot(spot.id)}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-mono tracking-wider transition-all backdrop-blur-md cursor-pointer ${
+              selectedHotspot === spot.id
+                ? "bg-[#c5a880] text-black font-semibold shadow-md"
+                : "bg-black/70 text-zinc-300 border border-white/10 hover:border-[#c5a880]"
+            }`}
+          >
+            {spot.name}
+          </button>
+        ))}
+      </div>
 
       {/* Interactive Controls Bar */}
       {showControls && (
