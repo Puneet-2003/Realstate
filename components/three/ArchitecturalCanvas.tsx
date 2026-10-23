@@ -202,7 +202,7 @@ function ModernVillaModel({
         return (
           <group key={spot.id} position={spot.position}>
             <Float speed={2} rotationIntensity={0.2} floatIntensity={0.3}>
-              <mesh onClick={() => onSelectHotspot(spot.id)} className="cursor-pointer">
+              <mesh onClick={() => onSelectHotspot(spot.id)}>
                 <sphereGeometry args={[0.16, 16, 16]} />
                 <meshStandardMaterial
                   color={isSelected ? "#d4af37" : "#ffffff"}
