@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Sparkles, Compass, ShieldCheck, Award } from "lucide-react";
 
 export function StorySection() {
@@ -36,7 +37,13 @@ export function StorySection() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Eyebrow */}
-        <div className="max-w-3xl">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="max-w-3xl"
+        >
           <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.3em] text-[#C6A76B] mb-4">
             <Sparkles className="w-3.5 h-3.5" />
             <span>The Architectural Ethos</span>
@@ -55,12 +62,18 @@ export function StorySection() {
             collaboration with world-renowned master architects, every sightline, acoustic
             threshold, and material junction has been measured with watchmaker precision.
           </p>
-        </div>
+        </motion.div>
 
         {/* Featured Visual Grid: Actual Exterior and Lobby Details */}
         <div className="mt-16 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
           {/* Main Visual: Lobby Arrival */}
-          <div className="md:col-span-7 relative group rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="md:col-span-7 relative group rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black"
+          >
             <div className="relative aspect-[16/10] w-full overflow-hidden">
               <img
                 src="/sequence/frame-180.jpg"
@@ -81,11 +94,17 @@ export function StorySection() {
               </div>
               <span className="text-xs font-mono text-white/60">32FT CEILINGS</span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Secondary Visual: Penthouse Skyline Horizon */}
           <div className="md:col-span-5 flex flex-col space-y-8">
-            <div className="relative group rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black">
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="relative group rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black"
+            >
               <div className="relative aspect-[16/11] w-full overflow-hidden">
                 <img
                   src="/sequence/frame-240.jpg"
@@ -104,10 +123,16 @@ export function StorySection() {
                   </h4>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Architectural Quote Card */}
-            <div className="p-8 rounded-2xl bg-[#0C0C10] border border-white/10 relative">
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="p-8 rounded-2xl bg-[#0C0C10] border border-white/10 relative"
+            >
               <span className="font-serif text-5xl text-[#C6A76B]/30 absolute top-4 left-6">“</span>
               <p className="relative z-10 text-sm sm:text-base text-white/80 font-light italic leading-relaxed pt-3">
                 True architectural luxury is quiet. It lives in the weight of the bronze door handle,
@@ -123,15 +148,20 @@ export function StorySection() {
                 </div>
                 <Award className="w-5 h-5 text-[#C6A76B]" />
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
 
-        {/* The 3 Core Pillars */}
+        {/* The 3 Core Pillars with Staggered Entrance */}
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-          {pillars.map((pillar) => (
-            <div
+          {pillars.map((pillar, index) => (
+            <motion.div
               key={pillar.number}
+              initial={{ opacity: 0, y: 35 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.7, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ y: -4 }}
               className="p-8 rounded-2xl bg-[#0B0B0E] border border-white/10 hover:border-[#C6A76B]/40 transition-all duration-300 group"
             >
               <div className="flex items-center justify-between pb-6 border-b border-white/10">
@@ -150,7 +180,7 @@ export function StorySection() {
               <p className="mt-4 text-xs sm:text-sm text-white/60 font-light leading-relaxed">
                 {pillar.description}
               </p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

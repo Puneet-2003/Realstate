@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { Menu, X, ArrowRight, Phone, Calendar, Sparkles } from "lucide-react";
 
 interface NavbarProps {
@@ -13,16 +14,22 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
   const [activeSection, setActiveSection] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Smooth scroll progress spring bar
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 28,
+    restDelta: 0.001,
+  });
+
   useEffect(() => {
     const handleScroll = () => {
-      // Toggle navbar translucency
       if (window.scrollY > 40) {
         setScrolled(true);
       } else {
         setScrolled(false);
       }
 
-      // Track active section
       const sections = [
         { id: "overview", el: document.getElementById("journey") },
         { id: "story", el: document.getElementById("story") },
@@ -67,11 +74,20 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
 
   return (
     <>
-      <header
+      {/* Top Subtle Spring Scroll Progress Bar */}
+      <motion.div
+        style={{ scaleX }}
+        className="fixed top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#C6A76B] via-[#F5F0E8] to-[#C6A76B] origin-left z-[60] pointer-events-none"
+      />
+
+      <motion.header
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
           scrolled
-            ? "bg-[#050505]/80 backdrop-blur-xl border-b border-white/10 py-3.5 shadow-2xl shadow-black/80"
-            : "bg-gradient-to-b from-black/80 via-black/20 to-transparent py-5"
+            ? "bg-[#050505]/85 backdrop-blur-xl border-b border-white/10 py-3.5 shadow-2xl shadow-black/80"
+            : "bg-gradient-to-b from-black/85 via-black/25 to-transparent py-5"
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -93,8 +109,8 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
               </span>
             </a>
 
-            {/* Center: Apple-style Pill Navigation */}
-            <nav className="hidden md:flex items-center space-x-1 border border-white/10 rounded-full px-4 py-1.5 bg-black/40 backdrop-blur-md">
+            {/* Center: Apple-style Pill Navigation with Framer Motion Layout Animation */}
+            <nav className="hidden md:flex items-center space-x-1 border border-white/10 rounded-full p-1 bg-black/40 backdrop-blur-md relative">
               {navLinks.map((link) => {
                 const isActive = activeSection === link.id;
                 return (
@@ -102,13 +118,20 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
                     key={link.label}
                     href={link.href}
                     onClick={(e) => handleNavClick(e, link.href)}
-                    className={`px-3.5 py-1 text-xs uppercase tracking-widest transition-all duration-300 rounded-full cursor-pointer ${
+                    className={`relative px-4 py-1 text-xs uppercase tracking-widest transition-colors duration-300 rounded-full cursor-pointer z-10 ${
                       isActive
-                        ? "text-[#C6A76B] font-semibold bg-white/10 shadow-sm"
-                        : "text-white/70 hover:text-white hover:bg-white/5"
+                        ? "text-[#C6A76B] font-semibold"
+                        : "text-white/70 hover:text-white"
                     }`}
                   >
-                    {link.label}
+                    {isActive && (
+                      <motion.div
+                        layoutId="active-nav-indicator"
+                        className="absolute inset-0 bg-white/10 rounded-full border border-[#C6A76B]/30"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{link.label}</span>
                   </a>
                 );
               })}
@@ -126,14 +149,16 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
                 <span>Private Desk</span>
               </a>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 type="button"
                 onClick={onOpenBooking}
-                className="group relative inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#C6A76B] hover:bg-[#d8be85] transition-all duration-300 shadow-lg shadow-[#C6A76B]/20 hover:scale-[1.02] cursor-pointer"
+                className="group relative inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#C6A76B] hover:bg-[#d8be85] transition-colors duration-300 shadow-lg shadow-[#C6A76B]/20 cursor-pointer"
               >
                 <span>Book a Private Visit</span>
                 <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-              </button>
+              </motion.button>
 
               {/* Mobile Hamburger */}
               <button
@@ -147,46 +172,54 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Mobile Drawer Menu */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-[#050505]/95 backdrop-blur-2xl flex flex-col justify-between pt-24 pb-8 px-6 md:hidden animate-in fade-in duration-200">
-          <div className="flex flex-col space-y-4">
-            <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-[#C6A76B]">
-              Navigation
-            </span>
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={(e) => handleNavClick(e, link.href)}
-                className="text-2xl font-serif text-white hover:text-[#C6A76B] transition-colors py-2 border-b border-white/5"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-
-          <div className="space-y-4 pt-6 border-t border-white/10">
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenBooking();
-              }}
-              className="w-full py-3.5 rounded-full text-center text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black shadow-xl"
-            >
-              Book a Private Visit
-            </button>
-
-            <div className="flex items-center justify-between text-xs font-mono text-white/40 pt-2">
-              <span>THE LUMIÈRE TOWER</span>
-              <span className="text-[#C6A76B]">68 FLOORS</span>
+      {/* Mobile Drawer Menu with AnimatePresence */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-40 bg-[#050505]/95 backdrop-blur-2xl flex flex-col justify-between pt-24 pb-8 px-6 md:hidden"
+          >
+            <div className="flex flex-col space-y-4">
+              <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-[#C6A76B]">
+                Navigation
+              </span>
+              {navLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={(e) => handleNavClick(e, link.href)}
+                  className="text-2xl font-serif text-white hover:text-[#C6A76B] transition-colors py-2 border-b border-white/5"
+                >
+                  {link.label}
+                </a>
+              ))}
             </div>
-          </div>
-        </div>
-      )}
+
+            <div className="space-y-4 pt-6 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenBooking();
+                }}
+                className="w-full py-3.5 rounded-full text-center text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black shadow-xl"
+              >
+                Book a Private Visit
+              </button>
+
+              <div className="flex items-center justify-between text-xs font-mono text-white/40 pt-2">
+                <span>THE LUMIÈRE TOWER</span>
+                <span className="text-[#C6A76B]">68 FLOORS</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

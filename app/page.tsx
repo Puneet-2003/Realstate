@@ -32,7 +32,7 @@ export default function HomePage() {
       <Navbar onOpenBooking={handleOpenBooking} />
 
       <main className="flex-1">
-        {/* Flagship Continuous Architectural Journey: 240 Photorealistic Frames */}
+        {/* Flagship Continuous Architectural Journey: 1080p Ultra-HD Photorealistic Sequence */}
         <section id="journey-stage" className="relative">
           <ScrollJourney onOpenBooking={handleOpenBooking} />
         </section>

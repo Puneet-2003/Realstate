@@ -1,9 +1,15 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
+import {
+  motion,
+  AnimatePresence,
+  useScroll,
+  useSpring,
+  useTransform,
+  useMotionValueEvent,
+} from "framer-motion";
 import {
   Volume2,
   VolumeX,
@@ -13,10 +19,6 @@ import {
   X,
   ArrowRight,
 } from "lucide-react";
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
 
 const TOTAL_FRAMES = 240;
 
@@ -185,50 +187,58 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     return `/sequence/frame-${pad}.jpg`;
   }, []);
 
-  // Draw frame on canvas with aspect-ratio cover
-  const drawFrame = useCallback((frameIndex: number) => {
+  // Draw frame on canvas with sub-frame blending for cinematic 60fps continuity
+  const drawFrame = useCallback((frameFloat: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Find closest loaded frame if requested frame isn't ready
-    let imgToDraw: HTMLImageElement | null = null;
-    if (loadedFlagsRef.current[frameIndex] && imagesRef.current[frameIndex]) {
-      imgToDraw = imagesRef.current[frameIndex];
-    } else {
-      // Search backward first
-      for (let i = frameIndex; i >= 0; i--) {
-        if (loadedFlagsRef.current[i] && imagesRef.current[i]) {
-          imgToDraw = imagesRef.current[i];
-          break;
-        }
-      }
-      // If none backward, search forward
-      if (!imgToDraw) {
-        for (let i = frameIndex; i < TOTAL_FRAMES; i++) {
-          if (loadedFlagsRef.current[i] && imagesRef.current[i]) {
-            imgToDraw = imagesRef.current[i];
-            break;
-          }
-        }
-      }
-    }
-
-    if (!imgToDraw || !imgToDraw.naturalWidth) return;
-
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
-    const imgWidth = imgToDraw.naturalWidth;
-    const imgHeight = imgToDraw.naturalHeight;
 
+    const baseIndex = Math.min(TOTAL_FRAMES - 1, Math.max(0, Math.floor(frameFloat)));
+    const nextIndex = Math.min(TOTAL_FRAMES - 1, baseIndex + 1);
+    const fraction = frameFloat - baseIndex;
+
+    // Helper to find closest loaded frame
+    const getLoadedImage = (index: number): HTMLImageElement | null => {
+      if (loadedFlagsRef.current[index] && imagesRef.current[index]) {
+        return imagesRef.current[index];
+      }
+      for (let i = index; i >= 0; i--) {
+        if (loadedFlagsRef.current[i] && imagesRef.current[i]) return imagesRef.current[i];
+      }
+      for (let i = index; i < TOTAL_FRAMES; i++) {
+        if (loadedFlagsRef.current[i] && imagesRef.current[i]) return imagesRef.current[i];
+      }
+      return null;
+    };
+
+    const baseImg = getLoadedImage(baseIndex);
+    if (!baseImg || !baseImg.naturalWidth) return;
+
+    const imgWidth = baseImg.naturalWidth;
+    const imgHeight = baseImg.naturalHeight;
     const scale = Math.max(canvasWidth / imgWidth, canvasHeight / imgHeight);
     const destWidth = imgWidth * scale;
     const destHeight = imgHeight * scale;
     const destX = (canvasWidth - destWidth) / 2;
     const destY = (canvasHeight - destHeight) / 2;
 
-    ctx.drawImage(imgToDraw, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
+    // 1. Draw base frame
+    ctx.globalAlpha = 1.0;
+    ctx.drawImage(baseImg, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
+
+    // 2. Sub-frame cross-dissolve to the next frame for buttery analog continuity
+    if (fraction > 0.02 && nextIndex > baseIndex) {
+      const nextImg = getLoadedImage(nextIndex);
+      if (nextImg && nextImg !== baseImg && nextImg.naturalWidth) {
+        ctx.globalAlpha = fraction;
+        ctx.drawImage(nextImg, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
+        ctx.globalAlpha = 1.0;
+      }
+    }
   }, []);
 
   // Update canvas resolution on resize
@@ -244,7 +254,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
 
-    drawFrame(Math.round(currentRenderedFrameRef.current));
+    drawFrame(currentRenderedFrameRef.current);
   }, [drawFrame]);
 
   // Robust Concurrent Image Preloading
@@ -272,7 +282,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           }
           // If the currently requested frame just loaded, update it
           if (Math.round(currentRenderedFrameRef.current) === index) {
-            drawFrame(index);
+            drawFrame(currentRenderedFrameRef.current);
           }
           resolve();
         };
@@ -311,34 +321,43 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     };
   }, [getFramePath, drawFrame, resizeCanvas]);
 
-  // Smooth lerped render loop
-  useEffect(() => {
-    const renderLoop = () => {
-      const current = currentRenderedFrameRef.current;
-      const target = targetFrameRef.current;
+  // Framer Motion Scroll Progress Binding with Slow, Extended Runway
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"],
+  });
 
-      const diff = target - current;
-      if (Math.abs(diff) > 0.05) {
-        currentRenderedFrameRef.current = current + diff * 0.22;
-        const frameToDraw = Math.min(
-          TOTAL_FRAMES - 1,
-          Math.max(0, Math.round(currentRenderedFrameRef.current))
-        );
-        setCurrentFrameNumber(frameToDraw + 1);
-        drawFrame(frameToDraw);
-      }
+  // Pure Apple-style buttery-smooth Framer Motion spring physics
+  // Deliberately calibrated for a slow, luxurious glide without fast jerky skipping
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 75, // Silky, cushioned resistance
+    damping: 28,   // Completely eliminates oscillation / bounce
+    mass: 0.6,     // Lightweight, immediate response without lag
+    restDelta: 0.0001,
+  });
 
-      rafIdRef.current = requestAnimationFrame(renderLoop);
-    };
+  // Transform 0..1 smooth progress directly into continuous frame float 0..(TOTAL_FRAMES - 1)
+  const currentFrameMotion = useTransform(smoothProgress, [0, 1], [0, TOTAL_FRAMES - 1]);
 
-    rafIdRef.current = requestAnimationFrame(renderLoop);
+  // Framer Motion driven sub-frame canvas rendering
+  useMotionValueEvent(currentFrameMotion, "change", (latestFrame) => {
+    currentRenderedFrameRef.current = latestFrame;
+    drawFrame(latestFrame);
+    setCurrentFrameNumber(Math.min(TOTAL_FRAMES, Math.max(1, Math.round(latestFrame) + 1)));
+  });
 
-    return () => {
-      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-    };
-  }, [drawFrame]);
+  // Framer Motion driven chapter & telemetry sync
+  useMotionValueEvent(smoothProgress, "change", (latestProgress) => {
+    setScrollProgress(latestProgress);
+    const chapterIdx = CHAPTERS.findIndex(
+      (c) => latestProgress >= c.range[0] && latestProgress <= c.range[1]
+    );
+    if (chapterIdx !== -1) {
+      setActiveChapterIndex(chapterIdx);
+    }
+  });
 
-  // Setup Lenis Smooth Scroll and GSAP ScrollTrigger with ROCK-SOLID PINNING
+  // Setup Lenis Smooth Scroll with independent requestAnimationFrame loop
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
@@ -346,52 +365,20 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 0.85,
-      touchMultiplier: 1.5,
+      wheelMultiplier: 0.85, // Slower, more intentional scroll sensitivity
+      touchMultiplier: 1.4,
     });
     lenisRef.current = lenis;
 
-    lenis.on("scroll", ScrollTrigger.update);
-
-    const tickerCallback = (time: number) => {
-      lenis.raf(time * 1000);
+    let rafId: number;
+    const raf = (time: number) => {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
     };
-    gsap.ticker.add(tickerCallback);
-    gsap.ticker.lagSmoothing(0);
-
-    // Setup GSAP ScrollTrigger with PINNING to lock the stage securely
-    if (containerRef.current && viewportRef.current) {
-      ScrollTrigger.create({
-        trigger: containerRef.current,
-        pin: viewportRef.current,
-        start: "top top",
-        end: "bottom bottom",
-        scrub: 0.6,
-        onUpdate: (self) => {
-          const progress = self.progress;
-          setScrollProgress(progress);
-
-          // Calculate target frame
-          const target = Math.min(
-            TOTAL_FRAMES - 1,
-            Math.max(0, Math.round(progress * (TOTAL_FRAMES - 1)))
-          );
-          targetFrameRef.current = target;
-
-          // Find active chapter
-          const chapterIdx = CHAPTERS.findIndex(
-            (c) => progress >= c.range[0] && progress <= c.range[1]
-          );
-          if (chapterIdx !== -1) {
-            setActiveChapterIndex(chapterIdx);
-          }
-        },
-      });
-    }
+    rafId = requestAnimationFrame(raf);
 
     return () => {
-      gsap.ticker.remove(tickerCallback);
-      ScrollTrigger.getAll().forEach((st) => st.kill());
+      cancelAnimationFrame(rafId);
       lenis.destroy();
     };
   }, []);
@@ -455,7 +442,8 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     if (!containerRef.current) return;
     const targetRange = CHAPTERS[index].range;
     const targetProgress = (targetRange[0] + targetRange[1]) / 2;
-    const containerTop = containerRef.current.offsetTop;
+    const rect = containerRef.current.getBoundingClientRect();
+    const containerTop = rect.top + window.scrollY;
     const containerHeight = containerRef.current.offsetHeight - window.innerHeight;
     const scrollTarget = containerTop + containerHeight * targetProgress;
 
@@ -476,12 +464,12 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
       ref={containerRef}
       id="journey"
       className="relative bg-[#050505] text-white w-full"
-      style={{ height: "650vh" }}
+      style={{ height: "900vh" }}
     >
-      {/* GSAP Pinned Viewport Container (Locks in place for 650vh) */}
+      {/* Sticky Viewport Container: Pure GPU-accelerated pinning for 900vh */}
       <div
         ref={viewportRef}
-        className="w-full h-screen relative overflow-hidden bg-[#050505]"
+        className="sticky top-0 w-full h-screen overflow-hidden bg-[#050505]"
       >
         {/* Full-bleed HTML5 Canvas */}
         <canvas
@@ -583,89 +571,100 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           })}
         </div>
 
-        {/* Hotspot Inspection Modal / Card */}
-        {activeHotspot && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md transition-opacity">
-            <div className="relative max-w-md w-full bg-[#0A0A0C] border border-[#C6A76B]/40 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black text-left animate-in fade-in zoom-in-95 duration-200">
-              <button
-                type="button"
-                onClick={() => setActiveHotspot(null)}
-                className="absolute top-5 right-5 p-2 rounded-full text-white/50 hover:text-white bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                aria-label="Close detail"
+        {/* Hotspot Inspection Modal / Card with Framer Motion */}
+        <AnimatePresence>
+          {activeHotspot && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                className="relative max-w-md w-full bg-[#0A0A0C] border border-[#C6A76B]/40 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black text-left"
               >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.2em] text-[#C6A76B] mb-2">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Architectural Specification</span>
-              </div>
-
-              <h3 className="font-serif text-2xl text-white font-light tracking-tight mt-1">
-                {activeHotspot.title}
-              </h3>
-
-              <p className="text-sm text-white/70 font-light leading-relaxed mt-4">
-                {activeHotspot.description}
-              </p>
-
-              <div className="mt-6 pt-5 border-t border-white/10 flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-white/40">
-                  The Lumière Engineering
-                </span>
                 <button
                   type="button"
                   onClick={() => setActiveHotspot(null)}
-                  className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest bg-[#C6A76B] hover:bg-[#d8be85] text-black font-semibold transition-all cursor-pointer"
+                  className="absolute top-5 right-5 p-2 rounded-full text-white/50 hover:text-white bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                  aria-label="Close detail"
                 >
-                  Dismiss
+                  <X className="w-4 h-4" />
                 </button>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Synchronized Storytelling Overlays (Scenes 1 - 5) */}
+                <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.2em] text-[#C6A76B] mb-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Architectural Specification</span>
+                </div>
+
+                <h3 className="font-serif text-2xl text-white font-light tracking-tight mt-1">
+                  {activeHotspot.title}
+                </h3>
+
+                <p className="text-sm text-white/70 font-light leading-relaxed mt-4">
+                  {activeHotspot.description}
+                </p>
+
+                <div className="mt-6 pt-5 border-t border-white/10 flex items-center justify-between">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-white/40">
+                    The Lumière Engineering
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveHotspot(null)}
+                    className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest bg-[#C6A76B] hover:bg-[#d8be85] text-black font-semibold transition-all cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Synchronized Storytelling Overlays with Framer Motion AnimatePresence */}
         <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-end pb-24 sm:pb-28 px-6 sm:px-12 md:px-20 max-w-7xl mx-auto">
-          {CHAPTERS.map((chapter, idx) => {
-            const isCurrent = activeChapterIndex === idx;
-
-            return (
-              <div
-                key={chapter.id}
-                className={`max-w-3xl transition-all duration-700 ease-out pointer-events-auto ${
-                  isCurrent
-                    ? "opacity-100 translate-y-0 block"
-                    : "opacity-0 translate-y-6 pointer-events-none hidden"
-                }`}
+          <AnimatePresence mode="wait">
+            {activeChapter && (
+              <motion.div
+                key={activeChapter.id}
+                initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -16, filter: "blur(6px)" }}
+                transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                className="max-w-3xl pointer-events-auto"
               >
                 {/* Chapter Pre-header */}
                 <div className="flex items-center gap-3 mb-3">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-widest uppercase bg-[#C6A76B]/20 text-[#C6A76B] border border-[#C6A76B]/30">
-                    SCENE {chapter.number}
+                    SCENE {activeChapter.number}
                   </span>
                   <span className="text-xs uppercase tracking-[0.25em] text-[#F5F0E8]/70 font-mono">
-                    {chapter.location}
+                    {activeChapter.location}
                   </span>
                 </div>
 
                 {/* Editorial Headline */}
                 <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight leading-[1.08] drop-shadow-2xl">
-                  {chapter.title}
+                  {activeChapter.title}
                 </h2>
 
                 {/* Supporting Copy */}
                 <p className="mt-3 sm:mt-4 text-base sm:text-lg text-white/90 font-light leading-relaxed max-w-2xl drop-shadow-lg">
-                  {chapter.subtitle}
+                  {activeChapter.subtitle}
                 </p>
 
                 <p className="hidden md:block mt-2 text-xs sm:text-sm text-white/70 font-light leading-relaxed max-w-xl">
-                  {chapter.description}
+                  {activeChapter.description}
                 </p>
 
                 {/* Architectural Specs Badges */}
                 <div className="mt-5 flex flex-wrap items-center gap-2 sm:gap-3">
-                  {chapter.specs.map((spec) => (
+                  {activeChapter.specs.map((spec) => (
                     <span
                       key={spec}
                       className="px-3 py-1 rounded-full text-[11px] font-mono tracking-wider text-white/90 bg-black/60 border border-white/15 backdrop-blur-md"
@@ -676,41 +675,45 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 </div>
 
                 {/* Action CTA for Hero or Final Chapter */}
-                {idx === 0 && (
+                {activeChapterIndex === 0 && (
                   <div className="mt-6 flex items-center gap-4">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
                       type="button"
                       onClick={() => scrollToChapter(1)}
-                      className="group inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 hover:scale-105 cursor-pointer"
+                      className="group inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
                     >
                       <span>Explore the Residence</span>
                       <ArrowDown className="w-3.5 h-3.5 transition-transform group-hover:translate-y-0.5" />
-                    </button>
+                    </motion.button>
                     <span className="text-xs font-mono uppercase tracking-widest text-white/50">
                       Scroll to travel inside
                     </span>
                   </div>
                 )}
 
-                {idx === CHAPTERS.length - 1 && (
+                {activeChapterIndex === CHAPTERS.length - 1 && (
                   <div className="mt-6 flex items-center gap-4">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
                       type="button"
                       onClick={onOpenBooking}
-                      className="group inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 hover:scale-105 cursor-pointer"
+                      className="group inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
                     >
                       <span>Book a Private Visit</span>
                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </button>
+                    </motion.button>
                   </div>
                 )}
-              </div>
-            );
-          })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Right Edge: Apple-Style Chapter Indicator Scrubber */}
-        <div className="hidden lg:flex fixed right-8 top-1/2 -translate-y-1/2 flex-col items-end gap-3 z-30 pointer-events-auto">
+        {/* Right Edge: Apple-Style Chapter Indicator Scrubber with Framer Motion layoutId */}
+        <div className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 flex-col items-end gap-3 z-30 pointer-events-auto">
           {CHAPTERS.map((ch, idx) => {
             const isActive = activeChapterIndex === idx;
             return (
@@ -718,7 +721,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 key={ch.id}
                 type="button"
                 onClick={() => scrollToChapter(idx)}
-                className="group flex items-center gap-3 py-1 text-right focus:outline-none cursor-pointer"
+                className="group flex items-center gap-3 py-1 text-right focus:outline-none cursor-pointer relative"
               >
                 <span
                   className={`text-[10px] font-mono tracking-widest uppercase transition-all duration-300 ${
@@ -729,13 +732,17 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 >
                   {ch.number} • {ch.id}
                 </span>
-                <span
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    isActive
-                      ? "w-8 bg-[#C6A76B] shadow-lg shadow-[#C6A76B]/40"
-                      : "w-2 bg-white/20 group-hover:bg-white/50 group-hover:w-4"
-                  }`}
-                />
+                <div className="relative w-8 h-2 flex items-center justify-end">
+                  {isActive ? (
+                    <motion.div
+                      layoutId="active-scrubber-pill"
+                      className="w-8 h-1.5 rounded-full bg-[#C6A76B] shadow-lg shadow-[#C6A76B]/50"
+                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                    />
+                  ) : (
+                    <div className="w-2 h-1.5 rounded-full bg-white/20 group-hover:bg-white/50 group-hover:w-4 transition-all" />
+                  )}
+                </div>
               </button>
             );
           })}

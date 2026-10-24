@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Building2, Compass, MapPin, Award, CheckCircle2, Shield } from "lucide-react";
+import { motion } from "framer-motion";
 
 export function ProjectDetails() {
   const specs = [
@@ -28,7 +29,13 @@ export function ProjectDetails() {
     <section id="location" className="py-28 sm:py-36 bg-[#070709] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-12 border-b border-white/10">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-12 border-b border-white/10"
+        >
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#C6A76B] mb-3">
               <Building2 className="w-3.5 h-3.5" />
@@ -46,14 +53,19 @@ export function ProjectDetails() {
             Positioned at the epicentre of commerce, culture, and coastal prestige, The Lumière
             provides immediate accessibility alongside complete sanctuary.
           </p>
-        </div>
+        </motion.div>
 
         {/* Specifications Matrix */}
         <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-          {specs.map((item) => (
-            <div
+          {specs.map((item, idx) => (
+            <motion.div
               key={item.label}
-              className="p-5 sm:p-6 rounded-2xl bg-[#0B0B0F] border border-white/5 hover:border-[#C6A76B]/30 transition-all flex flex-col justify-between"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: idx * 0.05 }}
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              className="p-5 sm:p-6 rounded-2xl bg-[#0B0B0F] border border-white/5 hover:border-[#C6A76B]/30 transition-colors flex flex-col justify-between"
             >
               <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">
                 {item.label}
@@ -66,14 +78,20 @@ export function ProjectDetails() {
                   {item.sub}
                 </span>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 
         {/* Location & Neighborhood Exploration */}
         <div className="mt-16 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Map & Visual */}
-          <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-white/10 relative shadow-2xl group bg-black">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-7 rounded-2xl overflow-hidden border border-white/10 relative shadow-2xl group bg-black"
+          >
             <div className="relative aspect-[16/10] w-full">
               <img
                 src="https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?q=80&w=1600&auto=format&fit=crop"
@@ -101,10 +119,16 @@ export function ProjectDetails() {
                 <span>Prime District 01</span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Key Landmarks Schedule */}
-          <div className="lg:col-span-5 bg-[#0A0A0E] border border-white/10 rounded-2xl p-6 sm:p-8">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-5 bg-[#0A0A0E] border border-white/10 rounded-2xl p-6 sm:p-8"
+          >
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <span className="text-xs font-mono uppercase tracking-widest text-[#C6A76B]">
                 Immediate Proximity
@@ -113,9 +137,13 @@ export function ProjectDetails() {
             </div>
 
             <div className="mt-4 space-y-3">
-              {landmarks.map((landmark) => (
-                <div
+              {landmarks.map((landmark, idx) => (
+                <motion.div
                   key={landmark.name}
+                  initial={{ opacity: 0, x: 10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.35, delay: idx * 0.05 }}
                   className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between hover:border-[#C6A76B]/30 transition-all"
                 >
                   <div>
@@ -129,7 +157,7 @@ export function ProjectDetails() {
                   <span className="text-xs font-mono text-[#C6A76B] font-semibold bg-[#C6A76B]/10 px-2.5 py-1 rounded-md">
                     {landmark.time}
                   </span>
-                </div>
+                </motion.div>
               ))}
             </div>
 
@@ -140,7 +168,7 @@ export function ProjectDetails() {
               </span>
               <span className="text-[#C6A76B] font-mono">Confidential Visits</span>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

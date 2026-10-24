@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Layers, Shield, Eye, Cpu, Compass, CheckCircle2 } from "lucide-react";
 
 interface MaterialDetail {
@@ -90,8 +91,14 @@ export function ArchitectureSection() {
   return (
     <section id="architecture" className="py-28 sm:py-36 bg-[#050505] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-12 border-b border-white/10">
+        {/* Section Header with Scroll Reveal */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-12 border-b border-white/10"
+        >
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#C6A76B] mb-3">
               <Layers className="w-3.5 h-3.5" />
@@ -110,7 +117,7 @@ export function ArchitectureSection() {
             surpass international seismic, acoustic, and thermal benchmarks while celebrating pure,
             unvarnished natural textures.
           </p>
-        </div>
+        </motion.div>
 
         {/* Interactive Material Inspector */}
         <div className="mt-14 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -122,11 +129,13 @@ export function ArchitectureSection() {
             {MATERIALS.map((mat) => {
               const isSelected = selectedMaterial.id === mat.id;
               return (
-                <button
+                <motion.button
                   key={mat.id}
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.99 }}
                   type="button"
                   onClick={() => setSelectedMaterial(mat)}
-                  className={`p-5 rounded-2xl text-left transition-all duration-300 border cursor-pointer ${
+                  className={`p-5 rounded-2xl text-left transition-all duration-300 border cursor-pointer relative ${
                     isSelected
                       ? "bg-[#0E0E14] border-[#C6A76B] shadow-xl shadow-[#C6A76B]/10 translate-x-2"
                       : "bg-[#08080B] border-white/5 hover:border-white/20 text-white/70"
@@ -142,64 +151,79 @@ export function ArchitectureSection() {
                   </div>
                   <h4 className="text-base font-serif text-white mt-1">{mat.name}</h4>
                   <p className="text-xs text-white/50 mt-1 line-clamp-1">{mat.finish}</p>
-                </button>
+                </motion.button>
               );
             })}
           </div>
 
-          {/* Material Detailed Preview Card */}
-          <div className="lg:col-span-7 bg-[#09090D] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-            <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden mb-6 border border-white/10">
-              <img
-                src={selectedMaterial.image}
-                alt={selectedMaterial.name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wider text-[#C6A76B] bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
-                  {selectedMaterial.origin}
-                </span>
-                <span className="text-xs font-mono text-white/70 bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
-                  {selectedMaterial.specs.split("•")[0]}
-                </span>
-              </div>
-            </div>
+          {/* Material Detailed Preview Card with Framer Motion AnimatePresence */}
+          <div className="lg:col-span-7 bg-[#09090D] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden min-h-[500px]">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedMaterial.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden mb-6 border border-white/10">
+                  <img
+                    src={selectedMaterial.image}
+                    alt={selectedMaterial.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                    <span className="text-xs font-mono uppercase tracking-wider text-[#C6A76B] bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
+                      {selectedMaterial.origin}
+                    </span>
+                    <span className="text-xs font-mono text-white/70 bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
+                      {selectedMaterial.specs.split("•")[0]}
+                    </span>
+                  </div>
+                </div>
 
-            <h3 className="font-serif text-2xl sm:text-3xl text-white font-light">
-              {selectedMaterial.name}
-            </h3>
+                <h3 className="font-serif text-2xl sm:text-3xl text-white font-light">
+                  {selectedMaterial.name}
+                </h3>
 
-            <p className="text-xs sm:text-sm text-white/70 font-light leading-relaxed mt-3">
-              {selectedMaterial.description}
-            </p>
+                <p className="text-xs sm:text-sm text-white/70 font-light leading-relaxed mt-3">
+                  {selectedMaterial.description}
+                </p>
 
-            <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3.5 rounded-xl bg-black/40 border border-white/5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 block">
-                  Surface Specification
-                </span>
-                <span className="text-white/90 font-medium mt-1 block">
-                  {selectedMaterial.specs}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-xl bg-black/40 border border-white/5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#C6A76B] block">
-                  Acoustic &amp; Thermal Performance
-                </span>
-                <span className="text-white/90 font-medium mt-1 block">
-                  {selectedMaterial.acousticThermal}
-                </span>
-              </div>
-            </div>
+                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-3.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 block">
+                      Surface Specification
+                    </span>
+                    <span className="text-white/90 font-medium mt-1 block">
+                      {selectedMaterial.specs}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#C6A76B] block">
+                      Acoustic &amp; Thermal Performance
+                    </span>
+                    <span className="text-white/90 font-medium mt-1 block">
+                      {selectedMaterial.acousticThermal}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Structural Engineering Matrix */}
+        {/* Structural Engineering Matrix with Staggered Scroll Entrance */}
         <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {engineeringMetrics.map((metric) => (
-            <div
+          {engineeringMetrics.map((metric, idx) => (
+            <motion.div
               key={metric.title}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.6, delay: idx * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ y: -4 }}
               className="p-6 rounded-2xl bg-[#09090C] border border-white/10 hover:border-[#C6A76B]/40 transition-all flex flex-col justify-between"
             >
               <div>
@@ -213,7 +237,7 @@ export function ArchitectureSection() {
                   {metric.desc}
                 </p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
