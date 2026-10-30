@@ -2,14 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Lenis from "lenis";
-import {
-  motion,
-  AnimatePresence,
-  useScroll,
-  useSpring,
-  useTransform,
-  useMotionValueEvent,
-} from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Volume2,
   VolumeX,
@@ -111,7 +104,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Triple-Laminated Acoustic Low-E Facade",
     description:
       "Engineered to block 99.4% of urban ambient noise while optimizing solar heat gain and providing crystal-clear chromatic clarity from sunrise to twilight.",
-    targetRange: [0.04, 0.2],
+    targetRange: [0.05, 0.16],
     position: { top: "35%", left: "45%" },
   },
   {
@@ -120,7 +113,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Linear Warm Amber Architectural Lighting",
     description:
       "Concealed 2700K warm LED ribbons bounce indirect golden light across fluted aluminum louvers, welcoming arrivals with residential warmth.",
-    targetRange: [0.2, 0.4],
+    targetRange: [0.22, 0.35],
     position: { top: "30%", left: "50%" },
   },
   {
@@ -129,7 +122,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Bookmatched Honed Statuario Floor",
     description:
       "Hand-selected slabs quarried in Carrara, Italy, honed to a silky low-sheen satin finish that mirrors the ambient ceiling illumination.",
-    targetRange: [0.4, 0.6],
+    targetRange: [0.42, 0.55],
     position: { top: "72%", left: "55%" },
   },
   {
@@ -138,7 +131,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Preserved Specimen Bonsai Garden",
     description:
       "A century-old cultivated Japanese black pine integrated into a recessed granite plinth, bringing organic tranquility into the monumental volume.",
-    targetRange: [0.6, 0.78],
+    targetRange: [0.62, 0.75],
     position: { top: "52%", left: "50%" },
   },
   {
@@ -147,7 +140,7 @@ const HOTSPOTS: Hotspot[] = [
     title: "Unobstructed Western Skyline Horizon",
     description:
       "Full-height structural glass mullions frame dramatic twilight sunsets across the metropolitan skyline, complemented by motorized sheer drapery.",
-    targetRange: [0.8, 0.98],
+    targetRange: [0.82, 0.95],
     position: { top: "40%", left: "30%" },
   },
 ];
@@ -161,13 +154,16 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // States
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [currentFrameNumber, setCurrentFrameNumber] = useState(1);
+  // High-performance DOM refs (avoiding React re-renders on high-frequency scroll ticks)
+  const frameCounterRef = useRef<HTMLSpanElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const scrollPromptRef = useRef<HTMLDivElement>(null);
+  const hotspotRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Discrete UI States
   const [activeChapterIndex, setActiveChapterIndex] = useState(0);
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-  const [loadedPercent, setLoadedPercent] = useState(0);
 
   // Audio Context Refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -177,8 +173,9 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
   const imagesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
   const loadedFlagsRef = useRef<boolean[]>(new Array(TOTAL_FRAMES).fill(false));
   const currentRenderedFrameRef = useRef<number>(0);
-  const targetFrameRef = useRef<number>(0);
-  const rafIdRef = useRef<number | null>(null);
+  const targetProgressRef = useRef<number>(0);
+  const lastDrawnFrameIndexRef = useRef<number>(-1);
+  const activeChapterIndexRef = useRef<number>(0);
   const lenisRef = useRef<Lenis | null>(null);
 
   // Helper to format frame path
@@ -187,127 +184,140 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     return `/sequence/frame-${pad}.jpg`;
   }, []);
 
-  // Draw frame on canvas with sub-frame blending for cinematic 60fps continuity
-  const drawFrame = useCallback((frameFloat: number) => {
+  // Outward nearest-neighbor search for instant frame resolution
+  const findClosestLoadedImage = useCallback((targetIndex: number): HTMLImageElement | null => {
+    // 1. Direct exact hit
+    const exact = imagesRef.current[targetIndex];
+    if (exact && exact.complete && exact.naturalWidth > 0) {
+      return exact;
+    }
+    // 2. Outward symmetric expansion
+    for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
+      const prev = targetIndex - offset;
+      if (prev >= 0) {
+        const imgPrev = imagesRef.current[prev];
+        if (imgPrev && imgPrev.complete && imgPrev.naturalWidth > 0) return imgPrev;
+      }
+      const next = targetIndex + offset;
+      if (next < TOTAL_FRAMES) {
+        const imgNext = imagesRef.current[next];
+        if (imgNext && imgNext.complete && imgNext.naturalWidth > 0) return imgNext;
+      }
+    }
+    return null;
+  }, []);
+
+  // Hardware-accelerated Canvas Rendering
+  const drawFrame = useCallback((frameIndex: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+
+    // Use alpha: false for optimized GPU composition
+    const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
+    if (canvasWidth === 0 || canvasHeight === 0) return;
 
-    const baseIndex = Math.min(TOTAL_FRAMES - 1, Math.max(0, Math.floor(frameFloat)));
-    const nextIndex = Math.min(TOTAL_FRAMES - 1, baseIndex + 1);
-    const fraction = frameFloat - baseIndex;
+    const clampedIndex = Math.min(TOTAL_FRAMES - 1, Math.max(0, frameIndex));
+    const img = findClosestLoadedImage(clampedIndex);
+    if (!img || !img.naturalWidth || !img.naturalHeight) return;
 
-    // Helper to find closest loaded frame
-    const getLoadedImage = (index: number): HTMLImageElement | null => {
-      if (loadedFlagsRef.current[index] && imagesRef.current[index]) {
-        return imagesRef.current[index];
-      }
-      for (let i = index; i >= 0; i--) {
-        if (loadedFlagsRef.current[i] && imagesRef.current[i]) return imagesRef.current[i];
-      }
-      for (let i = index; i < TOTAL_FRAMES; i++) {
-        if (loadedFlagsRef.current[i] && imagesRef.current[i]) return imagesRef.current[i];
-      }
-      return null;
-    };
+    const imgWidth = img.naturalWidth;
+    const imgHeight = img.naturalHeight;
 
-    const baseImg = getLoadedImage(baseIndex);
-    if (!baseImg || !baseImg.naturalWidth) return;
-
-    const imgWidth = baseImg.naturalWidth;
-    const imgHeight = baseImg.naturalHeight;
+    // High-DPI object-fit: cover scaling
     const scale = Math.max(canvasWidth / imgWidth, canvasHeight / imgHeight);
     const destWidth = imgWidth * scale;
     const destHeight = imgHeight * scale;
     const destX = (canvasWidth - destWidth) / 2;
     const destY = (canvasHeight - destHeight) / 2;
 
-    // 1. Draw base frame
-    ctx.globalAlpha = 1.0;
-    ctx.drawImage(baseImg, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
+  }, [findClosestLoadedImage]);
 
-    // 2. Sub-frame cross-dissolve to the next frame for buttery analog continuity
-    if (fraction > 0.02 && nextIndex > baseIndex) {
-      const nextImg = getLoadedImage(nextIndex);
-      if (nextImg && nextImg !== baseImg && nextImg.naturalWidth) {
-        ctx.globalAlpha = fraction;
-        ctx.drawImage(nextImg, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
-        ctx.globalAlpha = 1.0;
-      }
-    }
-  }, []);
-
-  // Update canvas resolution on resize
+  // Viewport & Retina DPI Buffer Resizing
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    const pixelWidth = Math.round(width * dpr);
+    const pixelHeight = Math.round(height * dpr);
 
-    drawFrame(currentRenderedFrameRef.current);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
+
+    // Force redraw on resize
+    lastDrawnFrameIndexRef.current = -1;
+    drawFrame(Math.round(currentRenderedFrameRef.current));
   }, [drawFrame]);
 
-  // Robust Concurrent Image Preloading
+  // Robust Asynchronous Image Preloading with GPU Predecoding
   useEffect(() => {
     let isMounted = true;
-    let loadedCount = 0;
-
-    // Immediately size canvas
     resizeCanvas();
 
-    const loadSingleFrame = (index: number): Promise<void> => {
+    const loadSingleFrame = (index: number): Promise<HTMLImageElement | null> => {
       return new Promise((resolve) => {
         const img = new Image();
         img.src = getFramePath(index);
-        img.onload = () => {
-          if (!isMounted) return resolve();
+        img.onload = async () => {
+          if ("decode" in img) {
+            try {
+              await img.decode();
+            } catch {
+              // Ignore background decode failures
+            }
+          }
+          if (!isMounted) return resolve(null);
           imagesRef.current[index] = img;
           loadedFlagsRef.current[index] = true;
-          loadedCount++;
-          setLoadedPercent(Math.round((loadedCount / TOTAL_FRAMES) * 100));
 
-          // If frame 0 just loaded, draw it immediately!
-          if (index === 0) {
+          // If initial frame just decoded, render immediately
+          if (index === 0 && lastDrawnFrameIndexRef.current === -1) {
             drawFrame(0);
           }
-          // If the currently requested frame just loaded, update it
-          if (Math.round(currentRenderedFrameRef.current) === index) {
-            drawFrame(currentRenderedFrameRef.current);
-          }
-          resolve();
+          resolve(img);
         };
-        img.onerror = () => {
-          resolve();
-        };
+        img.onerror = () => resolve(null);
       });
     };
 
-    // Immediate load of Frame 0
-    loadSingleFrame(0).then(() => {
-      if (!isMounted) return;
-      drawFrame(0);
-    });
-
-    // Load entire sequence in fast concurrent chunks
     const loadAllFrames = async () => {
-      const concurrency = 16;
-      for (let i = 0; i < TOTAL_FRAMES; i += concurrency) {
+      // 1. Instant load of hero frame 0
+      await loadSingleFrame(0);
+      if (!isMounted) return;
+
+      // 2. Preload sparse keyframes every 8 frames for immediate scrubbing support
+      const keyframes: number[] = [];
+      for (let i = 8; i < TOTAL_FRAMES; i += 8) {
+        keyframes.push(i);
+      }
+      await Promise.all(keyframes.map((idx) => loadSingleFrame(idx)));
+      if (!isMounted) return;
+
+      // 3. Concurrently preload all remaining frames in pipeline batches
+      const remaining: number[] = [];
+      for (let i = 0; i < TOTAL_FRAMES; i++) {
+        if (!loadedFlagsRef.current[i]) remaining.push(i);
+      }
+
+      const batchSize = 16;
+      for (let i = 0; i < remaining.length; i += batchSize) {
         if (!isMounted) break;
-        const batch = [];
-        for (let j = i; j < i + concurrency && j < TOTAL_FRAMES; j++) {
-          batch.push(loadSingleFrame(j));
-        }
-        await Promise.all(batch);
+        const chunk = remaining.slice(i, i + batchSize);
+        await Promise.all(chunk.map((idx) => loadSingleFrame(idx)));
       }
     };
 
@@ -321,69 +331,121 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     };
   }, [getFramePath, drawFrame, resizeCanvas]);
 
-  // Framer Motion Scroll Progress Binding with Slow, Extended Runway
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"],
-  });
-
-  // Pure Apple-style buttery-smooth Framer Motion spring physics
-  // Deliberately calibrated for a slow, luxurious glide without fast jerky skipping
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 75, // Silky, cushioned resistance
-    damping: 28,   // Completely eliminates oscillation / bounce
-    mass: 0.6,     // Lightweight, immediate response without lag
-    restDelta: 0.0001,
-  });
-
-  // Transform 0..1 smooth progress directly into continuous frame float 0..(TOTAL_FRAMES - 1)
-  const currentFrameMotion = useTransform(smoothProgress, [0, 1], [0, TOTAL_FRAMES - 1]);
-
-  // Framer Motion driven sub-frame canvas rendering
-  useMotionValueEvent(currentFrameMotion, "change", (latestFrame) => {
-    currentRenderedFrameRef.current = latestFrame;
-    drawFrame(latestFrame);
-    setCurrentFrameNumber(Math.min(TOTAL_FRAMES, Math.max(1, Math.round(latestFrame) + 1)));
-  });
-
-  // Framer Motion driven chapter & telemetry sync
-  useMotionValueEvent(smoothProgress, "change", (latestProgress) => {
-    setScrollProgress(latestProgress);
-    const chapterIdx = CHAPTERS.findIndex(
-      (c) => latestProgress >= c.range[0] && latestProgress <= c.range[1]
-    );
-    if (chapterIdx !== -1) {
-      setActiveChapterIndex(chapterIdx);
-    }
-  });
-
-  // Setup Lenis Smooth Scroll with independent requestAnimationFrame loop
+  // Single Synchronized Lenis + Canvas rAF Loop
   useEffect(() => {
+    // Lenis Smooth Inertial Scroll Engine
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 1.15,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 0.85, // Slower, more intentional scroll sensitivity
-      touchMultiplier: 1.4,
+      wheelMultiplier: 0.9,
+      touchMultiplier: 1.25,
+      infinite: false,
     });
     lenisRef.current = lenis;
 
+    const calculateProgress = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const scrollable = container.offsetHeight - windowHeight;
+      if (scrollable <= 0) return;
+
+      // Container scroll progress: 0 (top) to 1 (bottom)
+      const progress = Math.max(0, Math.min(1, -rect.top / scrollable));
+      targetProgressRef.current = progress;
+
+      // Direct GPU transform update for bottom progress bar (0 React re-renders)
+      if (progressBarRef.current) {
+        progressBarRef.current.style.transform = `scaleX(${progress})`;
+      }
+
+      // Update scroll indicator prompt
+      if (scrollPromptRef.current) {
+        scrollPromptRef.current.style.opacity = progress > 0.05 ? "0" : "1";
+      }
+
+      // Hotspots visibility updates directly on DOM nodes
+      HOTSPOTS.forEach((hotspot) => {
+        const el = hotspotRefs.current[hotspot.id];
+        if (!el) return;
+        const isVisible = progress >= hotspot.targetRange[0] && progress <= hotspot.targetRange[1];
+        if (isVisible) {
+          el.style.opacity = "1";
+          el.style.transform = "translate(-50%, -50%) scale(1)";
+          el.style.pointerEvents = "auto";
+        } else {
+          el.style.opacity = "0";
+          el.style.transform = "translate(-50%, -50%) scale(0.8)";
+          el.style.pointerEvents = "none";
+        }
+      });
+
+      // Update active chapter only when crossing boundary (only 5 re-renders total)
+      const chapterIdx = CHAPTERS.findIndex(
+        (c) => progress >= c.range[0] && progress <= c.range[1]
+      );
+      if (chapterIdx !== -1 && chapterIdx !== activeChapterIndexRef.current) {
+        activeChapterIndexRef.current = chapterIdx;
+        setActiveChapterIndex(chapterIdx);
+      }
+    };
+
+    lenis.on("scroll", calculateProgress);
+
+    // Single unified rAF driving Lenis physics and silky frame lerping
     let rafId: number;
     const raf = (time: number) => {
       lenis.raf(time);
+
+      const targetFrame = targetProgressRef.current * (TOTAL_FRAMES - 1);
+      const diff = targetFrame - currentRenderedFrameRef.current;
+
+      // Cinematic smooth damping
+      if (Math.abs(diff) > 0.005) {
+        currentRenderedFrameRef.current += diff * 0.22;
+        const frameToDraw = Math.round(currentRenderedFrameRef.current);
+        if (frameToDraw !== lastDrawnFrameIndexRef.current) {
+          drawFrame(frameToDraw);
+          lastDrawnFrameIndexRef.current = frameToDraw;
+          if (frameCounterRef.current) {
+            frameCounterRef.current.textContent = String(frameToDraw + 1).padStart(3, "0");
+          }
+        }
+      } else if (currentRenderedFrameRef.current !== targetFrame) {
+        currentRenderedFrameRef.current = targetFrame;
+        const frameToDraw = Math.round(targetFrame);
+        if (frameToDraw !== lastDrawnFrameIndexRef.current) {
+          drawFrame(frameToDraw);
+          lastDrawnFrameIndexRef.current = frameToDraw;
+          if (frameCounterRef.current) {
+            frameCounterRef.current.textContent = String(frameToDraw + 1).padStart(3, "0");
+          }
+        }
+      }
+
       rafId = requestAnimationFrame(raf);
     };
+
+    calculateProgress();
     rafId = requestAnimationFrame(raf);
+
+    // Also support native scroll events if window scrolls outside Lenis
+    window.addEventListener("scroll", calculateProgress, { passive: true });
 
     return () => {
       cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", calculateProgress);
       lenis.destroy();
+      lenisRef.current = null;
     };
-  }, []);
+  }, [drawFrame]);
 
-  // Web Audio subtle ambient tone
+  // Web Audio subtle architectural soundscape
   const toggleAudio = useCallback(() => {
     if (!isAudioEnabled) {
       try {
@@ -437,18 +499,19 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     }
   }, [isAudioEnabled]);
 
-  // Jump to chapter
+  // Jump to chapter with Lenis smooth scroll
   const scrollToChapter = (index: number) => {
     if (!containerRef.current) return;
     const targetRange = CHAPTERS[index].range;
     const targetProgress = (targetRange[0] + targetRange[1]) / 2;
-    const rect = containerRef.current.getBoundingClientRect();
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
     const containerTop = rect.top + window.scrollY;
-    const containerHeight = containerRef.current.offsetHeight - window.innerHeight;
+    const containerHeight = container.offsetHeight - window.innerHeight;
     const scrollTarget = containerTop + containerHeight * targetProgress;
 
     if (lenisRef.current) {
-      lenisRef.current.scrollTo(scrollTarget, { duration: 1.5 });
+      lenisRef.current.scrollTo(scrollTarget, { duration: 1.4 });
     } else {
       window.scrollTo({
         top: scrollTarget,
@@ -474,7 +537,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         {/* Full-bleed HTML5 Canvas */}
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full object-cover block z-0"
+          className="absolute inset-0 w-full h-full object-cover block z-0 will-change-transform"
         />
 
         {/* Underlying Image Fallback (Guarantees zero blank screen while frames load) */}
@@ -527,8 +590,11 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
             {/* Frame Telemetry */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] text-white/40">FRAME</span>
-              <span className="text-[10px] text-[#F5F0E8] font-semibold">
-                {String(currentFrameNumber).padStart(3, "0")}
+              <span
+                ref={frameCounterRef}
+                className="text-[10px] text-[#F5F0E8] font-semibold"
+              >
+                001
               </span>
               <span className="text-[10px] text-white/30">/ {TOTAL_FRAMES}</span>
             </div>
@@ -538,19 +604,20 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         {/* Interactive Hotspots Layer */}
         <div className="absolute inset-0 pointer-events-none z-20">
           {HOTSPOTS.map((hotspot) => {
-            const isVisible =
-              scrollProgress >= hotspot.targetRange[0] &&
-              scrollProgress <= hotspot.targetRange[1];
-
             return (
               <div
                 key={hotspot.id}
-                style={{ top: hotspot.position.top, left: hotspot.position.left }}
-                className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-700 ${
-                  isVisible
-                    ? "opacity-100 scale-100 pointer-events-auto"
-                    : "opacity-0 scale-75 pointer-events-none"
-                }`}
+                ref={(el) => {
+                  hotspotRefs.current[hotspot.id] = el;
+                }}
+                style={{
+                  top: hotspot.position.top,
+                  left: hotspot.position.left,
+                  opacity: 0,
+                  transform: "translate(-50%, -50%) scale(0.8)",
+                  pointerEvents: "none",
+                }}
+                className="absolute transition-all duration-500 ease-out"
               >
                 <button
                   type="button"
@@ -748,19 +815,19 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           })}
         </div>
 
-        {/* Bottom Scroll Progress Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 z-30">
+        {/* Bottom Scroll Progress Bar with GPU Transform */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 z-30 pointer-events-none">
           <div
-            className="h-full bg-gradient-to-r from-[#C6A76B] via-[#E8D4A8] to-[#C6A76B] transition-all duration-75"
-            style={{ width: `${Math.round(scrollProgress * 100)}%` }}
+            ref={progressBarRef}
+            className="h-full bg-gradient-to-r from-[#C6A76B] via-[#E8D4A8] to-[#C6A76B] origin-left will-change-transform"
+            style={{ transform: "scaleX(0)" }}
           />
         </div>
 
         {/* Scroll Indicator Prompt */}
         <div
-          className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-white/50 text-[10px] font-mono tracking-[0.25em] uppercase transition-opacity duration-500 pointer-events-none z-30 ${
-            scrollProgress > 0.08 ? "opacity-0" : "opacity-100 animate-bounce"
-          }`}
+          ref={scrollPromptRef}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-white/50 text-[10px] font-mono tracking-[0.25em] uppercase transition-opacity duration-500 pointer-events-none z-30 animate-bounce"
         >
           <span>SCROLL TO ADVANCE JOURNEY</span>
           <ArrowDown className="w-3.5 h-3.5 text-[#C6A76B]" />

@@ -316,6 +316,7 @@ export default function ArchitecturalCanvas({
           />
           <OrbitControls
             ref={controlsRef}
+            enableZoom={false}
             enablePan={false}
             minDistance={4}
             maxDistance={14}
