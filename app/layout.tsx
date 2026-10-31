@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-serif",
@@ -38,7 +39,9 @@ export default function RootLayout({
       className={`${cormorant.variable} ${jakarta.variable} dark scroll-smooth`}
     >
       <body className="min-h-screen bg-[#070709] text-[#f5f3ef] font-sans antialiased selection:bg-[#c5a880]/30 selection:text-[#fff]">
-        {children}
+        <TooltipProvider delayDuration={150}>
+          {children}
+        </TooltipProvider>
       </body>
     </html>
   );

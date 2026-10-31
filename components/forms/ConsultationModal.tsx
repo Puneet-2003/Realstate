@@ -1,7 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { X, CheckCircle2, Shield, Send } from "lucide-react";
+import React, { useState } from "react";
+import { CheckCircle2, Shield, Send } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  RippleButton,
+  RippleButtonRipples,
+} from "@animate-ui/react/primitives/buttons/ripple";
 
 interface ConsultationModalProps {
   isOpen: boolean;
@@ -24,28 +35,6 @@ export function ConsultationModal({
   const [notes, setNotes] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  // Esc key handler & backdrop click
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,34 +56,24 @@ export function ConsultationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      {/* Light dismiss backdrop */}
-      <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Dialog container */}
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="consultation-modal-title"
-        className="relative w-full max-w-xl rounded-2xl bg-[#0c0c12] border border-[#c5a880]/30 p-6 sm:p-8 shadow-2xl shadow-black text-left z-10 my-8 transition-all"
-      >
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-          aria-label="Close dialog"
-        >
-          <X className="w-5 h-5" />
-        </button>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl bg-[#0c0c12] border-[#c5a880]/30 p-6 sm:p-8 shadow-2xl text-white rounded-2xl">
+        <DialogHeader className="p-0 text-left">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#c5a880] font-semibold mb-1">
+            <Shield className="w-3.5 h-3.5" />
+            <span>Confidential Private Advisory</span>
+          </div>
+          <DialogTitle className="text-2xl sm:text-3xl font-serif text-white font-light">
+            Request a Private Consultation
+          </DialogTitle>
+          <DialogDescription className="text-xs text-zinc-400 mt-1 leading-relaxed">
+            Connect with our senior partners for off-market acquisitions, bespoke architectural
+            representations, and private viewings.
+          </DialogDescription>
+        </DialogHeader>
 
         {isSubmitted ? (
-          <div className="py-8 text-center">
+          <div className="py-6 text-center">
             <div className="w-16 h-16 rounded-full bg-[#c5a880]/20 border border-[#c5a880] flex items-center justify-center mx-auto mb-4 text-[#c5a880]">
               <CheckCircle2 className="w-8 h-8" />
             </div>
@@ -115,38 +94,21 @@ export function ConsultationModal({
                 )}.`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#c5a880] text-black hover:bg-[#dfc293] transition-colors"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#c5a880] text-black hover:bg-[#dfc293] transition-colors inline-block text-center"
               >
                 Open Fast-Track WhatsApp
               </a>
-              <button
-                type="button"
+              <RippleButton
                 onClick={handleReset}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest text-zinc-400 hover:text-white border border-white/10"
               >
-                Close
-              </button>
+                <RippleButtonRipples color="rgba(255, 255, 255, 0.2)" />
+                <span className="relative z-10">Close</span>
+              </RippleButton>
             </div>
           </div>
         ) : (
-          <div>
-            <div className="mb-6">
-              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#c5a880] font-semibold">
-                <Shield className="w-3.5 h-3.5" />
-                <span>Confidential Private Advisory</span>
-              </div>
-              <h3
-                id="consultation-modal-title"
-                className="text-2xl sm:text-3xl font-serif text-white mt-1"
-              >
-                Request a Private Consultation
-              </h3>
-              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                Connect with our senior partners for off-market acquisitions, bespoke architectural
-                representations, and private viewings.
-              </p>
-            </div>
-
+          <div className="mt-2">
             {errorMsg && (
               <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-500/40 text-xs text-red-200">
                 {errorMsg}
@@ -243,13 +205,16 @@ export function ConsultationModal({
               </div>
 
               <div className="pt-2">
-                <button
+                <RippleButton
                   type="submit"
                   className="w-full py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#c5a880] hover:bg-[#dfc293] transition-all shadow-xl shadow-[#c5a880]/20 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Transmit Confidential Request</span>
-                </button>
+                  <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <Send className="w-4 h-4" />
+                    <span>Transmit Confidential Request</span>
+                  </span>
+                </RippleButton>
               </div>
 
               <p className="text-[10px] text-zinc-500 text-center">
@@ -258,7 +223,7 @@ export function ConsultationModal({
             </form>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

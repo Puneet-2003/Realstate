@@ -3,17 +3,20 @@
 import React, { useState } from "react";
 import {
   Calendar,
-  Clock,
   ShieldCheck,
   CheckCircle2,
   ArrowRight,
   User,
   Mail,
   Phone,
-  MessageSquare,
   Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Tilt, TiltContent } from "@animate-ui/react/primitives/effects/tilt";
+import {
+  RippleButton,
+  RippleButtonRipples,
+} from "@animate-ui/react/primitives/buttons/ripple";
 
 export function VisitForm() {
   const [fullName, setFullName] = useState("");
@@ -123,53 +126,51 @@ export function VisitForm() {
 
         {/* Closing Visual Hero & Form Container */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-          {/* Left Column: Final Architectural Hero Shot */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="lg:col-span-5 rounded-2xl overflow-hidden border border-white/10 relative shadow-2xl bg-black flex flex-col justify-between group"
-          >
-            <div className="relative aspect-[4/5] lg:aspect-auto lg:h-full w-full overflow-hidden">
-              <img
-                src="/sequence/frame-001.jpg"
-                alt="The Lumière Tower Twilight Exterior"
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+          {/* Left Column: Final Architectural Hero Shot with Animate UI Tilt */}
+          <div className="lg:col-span-5 h-full">
+            <Tilt maxTilt={6} perspective={1000} className="w-full h-full">
+              <TiltContent className="rounded-2xl overflow-hidden border border-white/10 relative shadow-2xl bg-black flex flex-col justify-between group h-full">
+                <div className="relative aspect-[4/5] lg:aspect-auto lg:h-full w-full overflow-hidden">
+                  <img
+                    src="/sequence/frame-001.jpg"
+                    alt="The Lumière Tower Twilight Exterior"
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
 
-              <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#C6A76B] bg-black/70 px-3 py-1 rounded-full backdrop-blur-md border border-[#C6A76B]/30">
-                  FLAGSHIP MONOLITH
-                </span>
-                <span className="text-[10px] font-mono text-white/70 bg-black/60 px-2.5 py-1 rounded-full">
-                  TWILIGHT EXTERIOR
-                </span>
-              </div>
+                  <div className="absolute top-6 left-6 right-6 flex items-center justify-between pointer-events-none">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#C6A76B] bg-black/70 px-3 py-1 rounded-full backdrop-blur-md border border-[#C6A76B]/30">
+                      FLAGSHIP MONOLITH
+                    </span>
+                    <span className="text-[10px] font-mono text-white/70 bg-black/60 px-2.5 py-1 rounded-full">
+                      TWILIGHT EXTERIOR
+                    </span>
+                  </div>
 
-              <div className="absolute bottom-6 left-6 right-6">
-                <span className="text-xs font-mono text-[#C6A76B] uppercase tracking-wider block">
-                  The Lumière Tower
-                </span>
-                <h4 className="font-serif text-2xl text-white font-light mt-1">
-                  Architecture Beyond Ordinary
-                </h4>
-                <p className="text-xs text-white/60 font-light mt-2 leading-relaxed">
-                  A private enclave where architectural restraint meets uncompromising luxury.
-                  Confidential appointments include a private vehicle escort and bespoke floorplan
-                  consultation.
-                </p>
+                  <div className="absolute bottom-6 left-6 right-6 pointer-events-none">
+                    <span className="text-xs font-mono text-[#C6A76B] uppercase tracking-wider block">
+                      The Lumière Tower
+                    </span>
+                    <h4 className="font-serif text-2xl text-white font-light mt-1">
+                      Architecture Beyond Ordinary
+                    </h4>
+                    <p className="text-xs text-white/60 font-light mt-2 leading-relaxed">
+                      A private enclave where architectural restraint meets uncompromising luxury.
+                      Confidential appointments include a private vehicle escort and bespoke floorplan
+                      consultation.
+                    </p>
 
-                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/40">
-                  <span>SALES GALLERY OPEN DAILY</span>
-                  <span className="text-[#C6A76B]">BY APPOINTMENT</span>
+                    <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/40">
+                      <span>SALES GALLERY OPEN DAILY</span>
+                      <span className="text-[#C6A76B]">BY APPOINTMENT</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </motion.div>
+              </TiltContent>
+            </Tilt>
+          </div>
 
-          {/* Right Column: Refined Inquiry / Booking Form */}
+          {/* Right Column: Refined Inquiry / Booking Form with Animate UI Ripple Buttons */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -224,26 +225,22 @@ export function VisitForm() {
                   </div>
 
                   <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <motion.a
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
+                    <a
                       href={`https://wa.me/442079460912?text=Hello%2C%20I%20have%20submitted%20private%20visit%20reference%20${submittedBooking.reference}%20for%20The%20Lumi%C3%A8re.`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black hover:bg-[#d8be85] transition-all"
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black hover:bg-[#d8be85] transition-all inline-block text-center"
                     >
                       Connect via WhatsApp Concierge
-                    </motion.a>
+                    </a>
 
-                    <motion.button
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      type="button"
+                    <RippleButton
                       onClick={handleReset}
                       className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-mono text-white/60 hover:text-white border border-white/10 transition-all cursor-pointer"
                     >
-                      Submit Another Inquiry
-                    </motion.button>
+                      <RippleButtonRipples color="rgba(255, 255, 255, 0.2)" />
+                      <span className="relative z-10">Submit Another Inquiry</span>
+                    </RippleButton>
                   </div>
                 </motion.div>
               ) : (
@@ -421,25 +418,24 @@ export function VisitForm() {
                       <span>SSL 256-Bit Encrypted Transfer</span>
                     </div>
 
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <RippleButton
                       type="submit"
                       disabled={isSubmitting}
                       className="w-full sm:w-auto px-8 py-3 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
+                      <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
                       {isSubmitting ? (
-                        <>
+                        <span className="relative z-10 flex items-center gap-2">
                           <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
                           <span>Validating Credentials...</span>
-                        </>
+                        </span>
                       ) : (
-                        <>
+                        <span className="relative z-10 flex items-center gap-2">
                           <span>Confirm Private Visit</span>
                           <ArrowRight className="w-3.5 h-3.5" />
-                        </>
+                        </span>
                       )}
-                    </motion.button>
+                    </RippleButton>
                   </div>
                 </motion.form>
               )}

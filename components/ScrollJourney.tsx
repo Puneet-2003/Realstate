@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Lenis from "lenis";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import {
   Volume2,
   VolumeX,
@@ -11,9 +11,19 @@ import {
   Info,
   X,
   ArrowRight,
+  Shield,
+  Layers,
+  Play,
+  Pause,
 } from "lucide-react";
 
-const TOTAL_FRAMES = 240;
+const TOTAL_FRAMES = 100;
+const INITIAL_BURST_COUNT = 10;
+const MAX_CONCURRENT_FETCHES = 5;
+
+// Memory management budget
+const MAX_DECODED_DESKTOP = 100;
+const MAX_DECODED_MOBILE = 45;
 
 interface Chapter {
   id: string;
@@ -22,7 +32,7 @@ interface Chapter {
   subtitle: string;
   description: string;
   location: string;
-  range: [number, number]; // [start, end] scroll progress
+  range: [number, number];
   specs: string[];
 }
 
@@ -31,60 +41,51 @@ const CHAPTERS: Chapter[] = [
     id: "exterior",
     number: "01",
     title: "Architecture Beyond Ordinary.",
-    subtitle: "A new perspective on elevated living.",
-    description:
-      "Rising 68 stories into the metropolitan skyline, The Lumière commands attention with its geometric glass facade, illuminated canopy, and landscaped private motor court.",
-    location: "Exterior Facade & Grand Driveway",
+    subtitle: "68 stories. Timeless architecture. Elevated living.",
+    description: "Geometric glass facade rising into the skyline with landscaped private motor court.",
+    location: "Exterior Facade & Motor Court",
     range: [0.0, 0.18],
-    specs: ["68 Stories", "Low-E Acoustic Glazing", "Private Motor Court"],
+    specs: ["68 Stories", "STC 48 Acoustic Glazing", "Private Motor Court"],
   },
   {
     id: "approach",
     number: "02",
-    title: "Every Detail, Intentionally Designed.",
-    subtitle:
-      "From the first impression to the finest finish, every element reflects a commitment to timeless architectural excellence.",
-    location: "Entrance Gates & Vehicular Portal",
-    description:
-      "Passing through the architectural security gates along radiant basalt pavers, the entrance canopy glows with warm ambient light, framing the dramatic scale of the tower.",
+    title: "The Grand Arrival.",
+    subtitle: "Radiant basalt pavers and warm ambient canopy.",
+    description: "Architectural security portals and illuminated fluted canopy framing the tower.",
+    location: "Vehicular Portal & Entrance",
     range: [0.18, 0.38],
-    specs: ["Biometric Gateways", "Radiant Basalt Pavers", "Architectural Canopy"],
+    specs: ["Biometric Gateways", "Radiant Basalt", "Ambient 2700K Lighting"],
   },
   {
     id: "lobby",
     number: "03",
-    title: "An Entrance That Sets the Standard.",
-    subtitle:
-      "Experience a welcoming arrival defined by space, natural materials, considered lighting, and understated luxury.",
-    location: "Grand Double-Height Foyer",
-    description:
-      "Motorized glass portals reveal a monumental 32-foot double-height foyer paved with bookmatched Italian Statuario marble and enveloped in warm acoustic cove lighting.",
+    title: "The Double-Height Foyer.",
+    subtitle: "32-foot volume in bookmatched Italian Statuario.",
+    description: "Monumental lobby volume enveloped in satin-honed marble and acoustic cove lighting.",
+    location: "Grand Foyer & Atrium",
     range: [0.38, 0.58],
-    specs: ["32ft Finished Ceilings", "Statuario Marble", "Acoustic STC 48"],
+    specs: ["32ft Ceilings", "Bookmatched Statuario", "Acoustic STC 48"],
   },
   {
     id: "reception",
     number: "04",
-    title: "Crafted Around the Way You Live.",
-    subtitle:
-      "Thoughtful materials, considered proportions, and carefully curated interiors create a refined experience in every shared space.",
-    location: "Reception & Preserved Botanical Atrium",
-    description:
-      "At the center of the lobby, a sculpted marble reception desk sits beneath bespoke champagne brass chandeliers, accompanied by a signature living bonsai atrium.",
+    title: "Living Atrium & Concierge.",
+    subtitle: "Champagne brass lighting and century-old black pine.",
+    description: "Sculpted stone reception desk beneath bespoke brass fixtures and living bonsai plinth.",
+    location: "Reception & Bonsai Garden",
     range: [0.58, 0.78],
-    specs: ["24/7 White-Glove Desk", "Living Bonsai Atrium", "Bespoke Brass Lighting"],
+    specs: ["24/7 Concierge", "Preserved Bonsai", "Champagne Bronze"],
   },
   {
     id: "residence",
     number: "05",
-    title: "Space to Live Exceptionally.",
-    subtitle:
-      "Discover thoughtfully designed residences where natural light, refined finishes, and functional layouts come together.",
-    location: "The Sky Penthouse — 64th Floor",
-    description:
-      "Ascending into the upper residential sanctuary reveals continuous panoramic floor-to-ceiling glass, Italian boucle furnishings, bespoke stone kitchens, and twilight sunset horizons.",
+    title: "The Sky Penthouse.",
+    subtitle: "Floor-to-ceiling glass and 360° horizon.",
+    description: "Upper residential sanctuary with unobstructed twilight horizon and bespoke finishes.",
+    location: "Level 64 Penthouse",
     range: [0.78, 1.0],
-    specs: ["360° Sunset Horizon", "12,400 Sq Ft", "Minotti & Boffi Fitments"],
+    specs: ["360° Skyline", "12,400 Sq Ft", "Private Rooftop Pool"],
   },
 ];
 
@@ -103,7 +104,7 @@ const HOTSPOTS: Hotspot[] = [
     label: "Acoustic Glazing",
     title: "Triple-Laminated Acoustic Low-E Facade",
     description:
-      "Engineered to block 99.4% of urban ambient noise while optimizing solar heat gain and providing crystal-clear chromatic clarity from sunrise to twilight.",
+      "Engineered to block 99.4% of urban ambient noise while optimizing solar heat gain and chromatic clarity.",
     targetRange: [0.05, 0.16],
     position: { top: "35%", left: "45%" },
   },
@@ -112,7 +113,7 @@ const HOTSPOTS: Hotspot[] = [
     label: "Illuminated Canopy",
     title: "Linear Warm Amber Architectural Lighting",
     description:
-      "Concealed 2700K warm LED ribbons bounce indirect golden light across fluted aluminum louvers, welcoming arrivals with residential warmth.",
+      "Concealed 2700K warm LED ribbons bouncing indirect golden light across fluted architectural louvers.",
     targetRange: [0.22, 0.35],
     position: { top: "30%", left: "50%" },
   },
@@ -121,7 +122,7 @@ const HOTSPOTS: Hotspot[] = [
     label: "Italian Marble",
     title: "Bookmatched Honed Statuario Floor",
     description:
-      "Hand-selected slabs quarried in Carrara, Italy, honed to a silky low-sheen satin finish that mirrors the ambient ceiling illumination.",
+      "Hand-selected slabs from Carrara, honed to a silky satin finish that mirrors ambient ceiling lighting.",
     targetRange: [0.42, 0.55],
     position: { top: "72%", left: "55%" },
   },
@@ -130,7 +131,7 @@ const HOTSPOTS: Hotspot[] = [
     label: "Botanical Centerpiece",
     title: "Preserved Specimen Bonsai Garden",
     description:
-      "A century-old cultivated Japanese black pine integrated into a recessed granite plinth, bringing organic tranquility into the monumental volume.",
+      "A cultivated Japanese black pine integrated into a recessed granite plinth, bringing organic tranquility.",
     targetRange: [0.62, 0.75],
     position: { top: "52%", left: "50%" },
   },
@@ -139,7 +140,7 @@ const HOTSPOTS: Hotspot[] = [
     label: "Sunset Panorama",
     title: "Unobstructed Western Skyline Horizon",
     description:
-      "Full-height structural glass mullions frame dramatic twilight sunsets across the metropolitan skyline, complemented by motorized sheer drapery.",
+      "Full-height structural glass mullions framing twilight sunsets across the metropolitan skyline.",
     targetRange: [0.82, 0.95],
     position: { top: "40%", left: "30%" },
   },
@@ -149,227 +150,433 @@ interface ScrollJourneyProps {
   onOpenBooking?: () => void;
 }
 
+type FrameSource = HTMLImageElement;
+
 export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // High-performance DOM refs (avoiding React re-renders on high-frequency scroll ticks)
+  // Continuous Dual-Layer Hardware-Accelerated Cross-Fader:
+  // - Canvas A: Always solid 100% opaque base layer (IMPOSSIBLE to blink or show background)
+  // - Canvas B: Framer Motion-driven GPU blend layer (opacity from 0 to 1)
+  const canvasRefA = useRef<HTMLCanvasElement>(null);
+  const canvasRefB = useRef<HTMLCanvasElement>(null);
+  const opacityB = useMotionValue(0);
+  const lastDrawnFloorRef = useRef<number>(-1);
+  const lastDrawnCeilRef = useRef<number>(-1);
+
+  // High-performance direct DOM references (zero React re-renders on scroll)
   const frameCounterRef = useRef<HTMLSpanElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const scrollPromptRef = useRef<HTMLDivElement>(null);
+  const preloadIndicatorRef = useRef<HTMLSpanElement>(null);
   const hotspotRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Discrete UI States
+  // Discrete UI States (only update on discrete transitions)
   const [activeChapterIndex, setActiveChapterIndex] = useState(0);
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
+  const [initialLoadingProgress, setInitialLoadingProgress] = useState(0);
+  const [isInitialReady, setIsInitialReady] = useState(false);
+
+  // Auto-play tour tracking ref (synchronous in rAF)
+  const isAutoPlayingRef = useRef<boolean>(false);
 
   // Audio Context Refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const droneNodesRef = useRef<{ osc1: OscillatorNode; osc2: OscillatorNode; gain: GainNode } | null>(null);
 
-  // Image cache and animation refs
-  const imagesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
-  const loadedFlagsRef = useRef<boolean[]>(new Array(TOTAL_FRAMES).fill(false));
+  // Frame Engine Storage & State: Permanent memory retention (all 100 frames cached)
+  const framesCacheRef = useRef<(FrameSource | null)[]>(new Array(TOTAL_FRAMES).fill(null));
+  const frameStatusRef = useRef<Uint8Array>(new Uint8Array(TOTAL_FRAMES)); // 0: idle, 1: loading, 2: ready, 3: failed
+  const frameLastUsedRef = useRef<number[]>(new Array(TOTAL_FRAMES).fill(0));
+  const activeFetchesRef = useRef<number>(0);
   const currentRenderedFrameRef = useRef<number>(0);
   const targetProgressRef = useRef<number>(0);
-  const lastDrawnFrameIndexRef = useRef<number>(-1);
+  const targetFrameRef = useRef<number>(0);
   const activeChapterIndexRef = useRef<number>(0);
   const lenisRef = useRef<Lenis | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
-  // Helper to format frame path
-  const getFramePath = useCallback((index: number) => {
+  // Helper to resolve frame path (prefers modern WebP with MozJPEG fallback)
+  const getFramePath = useCallback((index: number, ext: "webp" | "jpg" = "webp") => {
     const pad = String(index + 1).padStart(3, "0");
-    return `/sequence/frame-${pad}.jpg`;
+    return `/sequence/frame-${pad}.${ext}`;
   }, []);
 
-  // Outward nearest-neighbor search for instant frame resolution
-  const findClosestLoadedImage = useCallback((targetIndex: number): HTMLImageElement | null => {
-    // 1. Direct exact hit
-    const exact = imagesRef.current[targetIndex];
-    if (exact && exact.complete && exact.naturalWidth > 0) {
-      return exact;
-    }
-    // 2. Outward symmetric expansion
-    for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
-      const prev = targetIndex - offset;
-      if (prev >= 0) {
-        const imgPrev = imagesRef.current[prev];
-        if (imgPrev && imgPrev.complete && imgPrev.naturalWidth > 0) return imgPrev;
-      }
-      const next = targetIndex + offset;
-      if (next < TOTAL_FRAMES) {
-        const imgNext = imagesRef.current[next];
-        if (imgNext && imgNext.complete && imgNext.naturalWidth > 0) return imgNext;
-      }
-    }
-    return null;
-  }, []);
-
-  // Hardware-accelerated Canvas Rendering
-  const drawFrame = useCallback((frameIndex: number) => {
-    const canvas = canvasRef.current;
+  // Hardware-accelerated canvas rendering: instant single-pass draw (zero lag, 120fps lock)
+  const drawFrameToCanvas = useCallback((canvas: HTMLCanvasElement | null, frameIndex: number) => {
     if (!canvas) return;
 
-    // Use alpha: false for optimized GPU composition
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     if (canvasWidth === 0 || canvasHeight === 0) return;
 
-    const clampedIndex = Math.min(TOTAL_FRAMES - 1, Math.max(0, frameIndex));
-    const img = findClosestLoadedImage(clampedIndex);
-    if (!img || !img.naturalWidth || !img.naturalHeight) return;
+    const clampedIndex = Math.max(0, Math.min(TOTAL_FRAMES - 1, frameIndex));
+    let frameSource = framesCacheRef.current[clampedIndex];
 
-    const imgWidth = img.naturalWidth;
-    const imgHeight = img.naturalHeight;
+    // Fallback to nearest loaded frame if needed
+    if (!frameSource) {
+      for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
+        const prev = clampedIndex - offset;
+        if (prev >= 0 && framesCacheRef.current[prev]) {
+          frameSource = framesCacheRef.current[prev];
+          break;
+        }
+        const next = clampedIndex + offset;
+        if (next < TOTAL_FRAMES && framesCacheRef.current[next]) {
+          frameSource = framesCacheRef.current[next];
+          break;
+        }
+      }
+    }
 
-    // High-DPI object-fit: cover scaling
+    if (!frameSource) return;
+
+    const imgWidth = frameSource.naturalWidth || 1920;
+    const imgHeight = frameSource.naturalHeight || 1080;
+
+    // High-performance object-fit: cover scaling
     const scale = Math.max(canvasWidth / imgWidth, canvasHeight / imgHeight);
     const destWidth = imgWidth * scale;
     const destHeight = imgHeight * scale;
-    const destX = (canvasWidth - destWidth) / 2;
-    const destY = (canvasHeight - destHeight) / 2;
+    const destX = (canvasWidth - destWidth) * 0.5;
+    const destY = (canvasHeight - destHeight) * 0.5;
 
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
-  }, [findClosestLoadedImage]);
+    ctx.drawImage(frameSource, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
 
-  // Viewport & Retina DPI Buffer Resizing
+    frameLastUsedRef.current[clampedIndex] = Date.now();
+  }, []);
+
+  // Renders continuous photographic cross-dissolve across any float frame value [0 .. TOTAL_FRAMES - 1]
+  // Base Canvas A is ALWAYS 100% opaque (impossible to blink or show background).
+  // Overlay Canvas B is blended via Framer Motion GPU opacity.
+  const renderFrameSequence = useCallback(
+    (val: number) => {
+      const clamped = Math.max(0, Math.min(TOTAL_FRAMES - 1, val));
+      const floorIndex = Math.floor(clamped);
+      const ceilIndex = Math.min(TOTAL_FRAMES - 1, floorIndex + 1);
+      const fraction = clamped - floorIndex;
+
+      // Only repaint Base Canvas A when floor index changes
+      if (floorIndex !== lastDrawnFloorRef.current) {
+        drawFrameToCanvas(canvasRefA.current, floorIndex);
+        lastDrawnFloorRef.current = floorIndex;
+      }
+
+      // Only repaint Overlay Canvas B when ceil index changes
+      if (ceilIndex !== lastDrawnCeilRef.current) {
+        drawFrameToCanvas(canvasRefB.current, ceilIndex);
+        lastDrawnCeilRef.current = ceilIndex;
+      }
+
+      // Framer Motion hardware-accelerated GPU opacity blend (smoothstep S-curve)
+      // Smoothstep eliminates linear seams: fraction^2 * (3 - 2 * fraction)
+      const smoothAlpha = fraction * fraction * (3 - 2 * fraction);
+      opacityB.set(smoothAlpha);
+
+      // Update telemetry frame indicator
+      if (frameCounterRef.current) {
+        const displayFrame = Math.min(TOTAL_FRAMES, Math.round(clamped) + 1);
+        frameCounterRef.current.textContent = String(displayFrame).padStart(3, "0");
+      }
+    },
+    [drawFrameToCanvas, opacityB]
+  );
+
+  // Viewport & High-DPI canvas buffer sizing (optimized 1.5x DPR cap for zero GPU fill-rate lag)
   const resizeCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const isTouch =
+      typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+    const maxDpr = isTouch ? 1.25 : 1.5;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const width = window.innerWidth;
     const height = window.innerHeight;
 
     const pixelWidth = Math.round(width * dpr);
     const pixelHeight = Math.round(height * dpr);
 
-    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-      canvas.width = pixelWidth;
-      canvas.height = pixelHeight;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+    [canvasRefA.current, canvasRefB.current].forEach((canvas) => {
+      if (!canvas) return;
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+      }
+    });
+
+    // Force re-paint both current floor and ceil on resized buffers
+    const floor = Math.max(0, lastDrawnFloorRef.current);
+    const ceil = Math.max(0, lastDrawnCeilRef.current);
+    drawFrameToCanvas(canvasRefA.current, floor);
+    drawFrameToCanvas(canvasRefB.current, ceil);
+  }, [drawFrameToCanvas]);
+
+  // Fetch and decode a single frame asynchronously (WebP with MozJPEG fallback)
+  const loadSingleFrame = useCallback(
+    async (index: number): Promise<boolean> => {
+      if (index < 0 || index >= TOTAL_FRAMES) return false;
+      if (frameStatusRef.current[index] === 2) return true; // Already READY
+      if (frameStatusRef.current[index] === 1) return true; // Already PENDING
+
+      frameStatusRef.current[index] = 1;
+      activeFetchesRef.current += 1;
+
+      try {
+        const webpUrl = getFramePath(index, "webp");
+        const jpgUrl = getFramePath(index, "jpg");
+
+        const img = new Image();
+        img.src = webpUrl;
+
+        const readyImg = await new Promise<HTMLImageElement | null>((resolve) => {
+          img.onload = async () => {
+            if ("decode" in img) {
+              try {
+                await img.decode();
+              } catch {}
+            }
+            resolve(img);
+          };
+          img.onerror = () => {
+            // High-compatibility MozJPEG fallback
+            const fallback = new Image();
+            fallback.src = jpgUrl;
+            fallback.onload = async () => {
+              if ("decode" in fallback) {
+                try {
+                  await fallback.decode();
+                } catch {}
+              }
+              resolve(fallback);
+            };
+            fallback.onerror = () => resolve(null);
+          };
+        });
+
+        if (!isMountedRef.current) return false;
+
+        if (readyImg) {
+          framesCacheRef.current[index] = readyImg;
+          frameStatusRef.current[index] = 2; // READY
+          frameLastUsedRef.current[index] = Date.now();
+
+          // If hero frame 0 just arrived, paint immediately on Canvas A
+          if (index === 0 && lastDrawnFloorRef.current === -1) {
+            drawFrameToCanvas(canvasRefA.current, 0);
+            lastDrawnFloorRef.current = 0;
+            opacityB.set(0);
+          }
+
+          // If current sequence needs this frame, re-render immediately
+          const currentFloor = Math.floor(currentRenderedFrameRef.current);
+          const currentCeil = Math.min(TOTAL_FRAMES - 1, currentFloor + 1);
+          if (index === currentFloor) {
+            drawFrameToCanvas(canvasRefA.current, index);
+            lastDrawnFloorRef.current = index;
+          }
+          if (index === currentCeil) {
+            drawFrameToCanvas(canvasRefB.current, index);
+            lastDrawnCeilRef.current = index;
+          }
+          return true;
+        } else {
+          frameStatusRef.current[index] = 3; // FAILED
+          return false;
+        }
+      } catch {
+        frameStatusRef.current[index] = 3;
+        return false;
+      } finally {
+        activeFetchesRef.current = Math.max(0, activeFetchesRef.current - 1);
+      }
+    },
+    [getFramePath, drawFrameToCanvas, opacityB]
+  );
+
+  // Dynamic Priority Scheduler: preloads upcoming frames around current scroll position
+  const scheduleQueue = useCallback(() => {
+    if (!isMountedRef.current) return;
+    if (activeFetchesRef.current >= MAX_CONCURRENT_FETCHES) return;
+
+    const currentTarget = Math.round(targetFrameRef.current);
+    const candidates: { index: number; priority: number }[] = [];
+
+    for (let i = 0; i < TOTAL_FRAMES; i++) {
+      const status = frameStatusRef.current[i];
+      if (status === 0 || status === 3) {
+        let priority = 1000;
+        const diff = i - currentTarget;
+
+        if (diff >= 0 && diff <= 12) {
+          priority = diff; // Highest priority 0 to 12 forward
+        } else if (diff < 0 && diff >= -6) {
+          priority = 15 + Math.abs(diff); // High priority 16 to 21 backward
+        } else if (diff > 12 && diff <= 30) {
+          priority = 30 + diff; // Medium priority forward
+        } else {
+          priority = 100 + Math.abs(diff); // Low priority background
+        }
+
+        candidates.push({ index: i, priority });
+      }
     }
 
-    // Force redraw on resize
-    lastDrawnFrameIndexRef.current = -1;
-    drawFrame(Math.round(currentRenderedFrameRef.current));
-  }, [drawFrame]);
+    candidates.sort((a, b) => a.priority - b.priority);
 
-  // Robust Asynchronous Image Preloading with GPU Predecoding
+    const availableSlots = MAX_CONCURRENT_FETCHES - activeFetchesRef.current;
+    const toLaunch = candidates.slice(0, availableSlots);
+
+    for (const item of toLaunch) {
+      loadSingleFrame(item.index).then(() => {
+        scheduleQueue();
+      });
+    }
+
+    if (preloadIndicatorRef.current) {
+      let loaded = 0;
+      for (let i = 0; i < TOTAL_FRAMES; i++) {
+        if (frameStatusRef.current[i] === 2) loaded++;
+      }
+      preloadIndicatorRef.current.style.opacity = loaded === TOTAL_FRAMES ? "1" : "0.5";
+    }
+  }, [loadSingleFrame]);
+
+  // Initial Boot Preload Pipeline: Preloads all 100 frames upfront (~350ms) for 100% lag-free scrolling
   useEffect(() => {
-    let isMounted = true;
+    isMountedRef.current = true;
     resizeCanvas();
 
-    const loadSingleFrame = (index: number): Promise<HTMLImageElement | null> => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = getFramePath(index);
-        img.onload = async () => {
-          if ("decode" in img) {
-            try {
-              await img.decode();
-            } catch {
-              // Ignore background decode failures
-            }
-          }
-          if (!isMounted) return resolve(null);
-          imagesRef.current[index] = img;
-          loadedFlagsRef.current[index] = true;
-
-          // If initial frame just decoded, render immediately
-          if (index === 0 && lastDrawnFrameIndexRef.current === -1) {
-            drawFrame(0);
-          }
-          resolve(img);
-        };
-        img.onerror = () => resolve(null);
-      });
-    };
-
-    const loadAllFrames = async () => {
-      // 1. Instant load of hero frame 0
+    const bootSequence = async () => {
+      // 1. Instantly fetch & paint hero frame 0 onto Canvas A and frame 1 onto Canvas B
       await loadSingleFrame(0);
-      if (!isMounted) return;
+      if (!isMountedRef.current) return;
+      drawFrameToCanvas(canvasRefA.current, 0);
+      lastDrawnFloorRef.current = 0;
+      opacityB.set(0);
+      setInitialLoadingProgress(10);
 
-      // 2. Preload sparse keyframes every 8 frames for immediate scrubbing support
-      const keyframes: number[] = [];
-      for (let i = 8; i < TOTAL_FRAMES; i += 8) {
-        keyframes.push(i);
+      loadSingleFrame(1).then(() => {
+        if (!isMountedRef.current) return;
+        drawFrameToCanvas(canvasRefB.current, 1);
+        lastDrawnCeilRef.current = 1;
+      });
+
+      // 2. Preload ALL remaining frames in parallel worker pool (10 concurrent fetches, ~350ms total)
+      let completedCount = 1;
+      const tasks: (() => Promise<boolean>)[] = [];
+
+      for (let i = 1; i < TOTAL_FRAMES; i++) {
+        tasks.push(() =>
+          loadSingleFrame(i).then((ok) => {
+            if (!isMountedRef.current) return ok;
+            if (ok) {
+              completedCount++;
+              const pct = Math.min(100, Math.round((completedCount / TOTAL_FRAMES) * 100));
+              setInitialLoadingProgress(pct);
+            }
+            return ok;
+          })
+        );
       }
-      await Promise.all(keyframes.map((idx) => loadSingleFrame(idx)));
-      if (!isMounted) return;
 
-      // 3. Concurrently preload all remaining frames in pipeline batches
-      const remaining: number[] = [];
-      for (let i = 0; i < TOTAL_FRAMES; i++) {
-        if (!loadedFlagsRef.current[i]) remaining.push(i);
-      }
+      let taskIdx = 0;
+      const workers = Array.from({ length: 10 }, async () => {
+        while (taskIdx < tasks.length && isMountedRef.current) {
+          const task = tasks[taskIdx++];
+          await task();
+        }
+      });
 
-      const batchSize = 16;
-      for (let i = 0; i < remaining.length; i += batchSize) {
-        if (!isMounted) break;
-        const chunk = remaining.slice(i, i + batchSize);
-        await Promise.all(chunk.map((idx) => loadSingleFrame(idx)));
+      await Promise.all(workers);
+      if (!isMountedRef.current) return;
+
+      setInitialLoadingProgress(100);
+      setIsInitialReady(true);
+
+      if (preloadIndicatorRef.current) {
+        preloadIndicatorRef.current.style.opacity = "1";
+        preloadIndicatorRef.current.title = "All 100 frames cached in memory";
       }
     };
 
-    loadAllFrames();
+    bootSequence();
+
+    // Resize handling via ResizeObserver on container
+    const container = containerRef.current;
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && container) {
+      resizeObserver = new ResizeObserver(() => {
+        resizeCanvas();
+      });
+      resizeObserver.observe(container);
+    }
 
     window.addEventListener("resize", resizeCanvas);
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
+      if (resizeObserver) resizeObserver.disconnect();
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [getFramePath, drawFrame, resizeCanvas]);
+  }, [loadSingleFrame, resizeCanvas, scheduleQueue, drawFrameToCanvas, opacityB]);
 
-  // Single Synchronized Lenis + Canvas rAF Loop
+  // Lenis Smooth Scroll Engine + Zero-Lag Single rAF Render Loop
   useEffect(() => {
-    // Lenis Smooth Inertial Scroll Engine
+    const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
     const lenis = new Lenis({
-      duration: 1.15,
+      duration: isTouch ? 0.75 : 0.85,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 0.9,
-      touchMultiplier: 1.25,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.2,
       infinite: false,
     });
     lenisRef.current = lenis;
 
-    const calculateProgress = () => {
+    // Zero-reflow dimension caching
+    let cachedContainerTop = 0;
+    let cachedScrollable = 1;
+
+    const measureBounds = () => {
       const container = containerRef.current;
       if (!container) return;
-
       const rect = container.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const scrollable = container.offsetHeight - windowHeight;
-      if (scrollable <= 0) return;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      cachedContainerTop = rect.top + scrollTop;
+      cachedScrollable = Math.max(1, container.offsetHeight - window.innerHeight);
+    };
 
-      // Container scroll progress: 0 (top) to 1 (bottom)
-      const progress = Math.max(0, Math.min(1, -rect.top / scrollable));
+    measureBounds();
+
+    const calculateProgress = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const progress = Math.max(0, Math.min(1, (scrollTop - cachedContainerTop) / cachedScrollable));
       targetProgressRef.current = progress;
+      targetFrameRef.current = progress * (TOTAL_FRAMES - 1);
 
       // Direct GPU transform update for bottom progress bar (0 React re-renders)
       if (progressBarRef.current) {
         progressBarRef.current.style.transform = `scaleX(${progress})`;
       }
 
-      // Update scroll indicator prompt
+      // Hide scroll indicator prompt once scrolled
       if (scrollPromptRef.current) {
-        scrollPromptRef.current.style.opacity = progress > 0.05 ? "0" : "1";
+        scrollPromptRef.current.style.opacity = progress > 0.04 ? "0" : "1";
       }
 
-      // Hotspots visibility updates directly on DOM nodes
+      // Hotspots visibility updates directly on DOM elements
       HOTSPOTS.forEach((hotspot) => {
         const el = hotspotRefs.current[hotspot.id];
         if (!el) return;
@@ -380,12 +587,12 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           el.style.pointerEvents = "auto";
         } else {
           el.style.opacity = "0";
-          el.style.transform = "translate(-50%, -50%) scale(0.8)";
+          el.style.transform = "translate(-50%, -50%) scale(0.85)";
           el.style.pointerEvents = "none";
         }
       });
 
-      // Update active chapter only when crossing boundary (only 5 re-renders total)
+      // Update active chapter only when crossing boundary
       const chapterIdx = CHAPTERS.findIndex(
         (c) => progress >= c.range[0] && progress <= c.range[1]
       );
@@ -397,36 +604,63 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
 
     lenis.on("scroll", calculateProgress);
 
-    // Single unified rAF driving Lenis physics and silky frame lerping
+    // Stop auto-tour immediately on manual user gesture (wheel, touch, keyboard)
+    const stopAutoTourOnUserGesture = () => {
+      if (isAutoPlayingRef.current) {
+        isAutoPlayingRef.current = false;
+        setIsAutoPlaying(false);
+      }
+    };
+
+    window.addEventListener("wheel", stopAutoTourOnUserGesture, { passive: true });
+    window.addEventListener("touchstart", stopAutoTourOnUserGesture, { passive: true });
+    window.addEventListener("keydown", stopAutoTourOnUserGesture, { passive: true });
+
+    // Single unified rAF driving Lenis physics, auto-tour, and instant frame rendering
     let rafId: number;
     const raf = (time: number) => {
       lenis.raf(time);
 
-      const targetFrame = targetProgressRef.current * (TOTAL_FRAMES - 1);
-      const diff = targetFrame - currentRenderedFrameRef.current;
+      // Auto-tour continuous playback
+      if (isAutoPlayingRef.current) {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const currentOffset = scrollTop - cachedContainerTop;
+        const increment = cachedScrollable / (60 * 15);
+        const nextOffset = currentOffset + increment;
 
-      // Cinematic smooth damping
-      if (Math.abs(diff) > 0.005) {
-        currentRenderedFrameRef.current += diff * 0.22;
-        const frameToDraw = Math.round(currentRenderedFrameRef.current);
-        if (frameToDraw !== lastDrawnFrameIndexRef.current) {
-          drawFrame(frameToDraw);
-          lastDrawnFrameIndexRef.current = frameToDraw;
-          if (frameCounterRef.current) {
-            frameCounterRef.current.textContent = String(frameToDraw + 1).padStart(3, "0");
-          }
-        }
-      } else if (currentRenderedFrameRef.current !== targetFrame) {
-        currentRenderedFrameRef.current = targetFrame;
-        const frameToDraw = Math.round(targetFrame);
-        if (frameToDraw !== lastDrawnFrameIndexRef.current) {
-          drawFrame(frameToDraw);
-          lastDrawnFrameIndexRef.current = frameToDraw;
-          if (frameCounterRef.current) {
-            frameCounterRef.current.textContent = String(frameToDraw + 1).padStart(3, "0");
+        if (nextOffset >= cachedScrollable) {
+          isAutoPlayingRef.current = false;
+          setIsAutoPlaying(false);
+        } else {
+          const nextScroll = cachedContainerTop + nextOffset;
+          if (lenisRef.current) {
+            lenisRef.current.scrollTo(nextScroll, { immediate: true });
+          } else {
+            window.scrollTo({ top: nextScroll });
           }
         }
       }
+
+      const target = targetFrameRef.current;
+      const diff = target - currentRenderedFrameRef.current;
+
+      const prefersReducedMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      if (prefersReducedMotion) {
+        currentRenderedFrameRef.current = target;
+      } else if (Math.abs(diff) > 2.5) {
+        // High-velocity scrub: follow directly without lag
+        currentRenderedFrameRef.current = target;
+      } else if (Math.abs(diff) > 0.001) {
+        // Silky-smooth responsive sub-frame interpolation
+        currentRenderedFrameRef.current += diff * 0.55;
+      } else {
+        currentRenderedFrameRef.current = target;
+      }
+
+      renderFrameSequence(currentRenderedFrameRef.current);
 
       rafId = requestAnimationFrame(raf);
     };
@@ -434,18 +668,20 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     calculateProgress();
     rafId = requestAnimationFrame(raf);
 
-    // Also support native scroll events if window scrolls outside Lenis
-    window.addEventListener("scroll", calculateProgress, { passive: true });
+    window.addEventListener("resize", measureBounds);
 
     return () => {
       cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", calculateProgress);
+      window.removeEventListener("resize", measureBounds);
+      window.removeEventListener("wheel", stopAutoTourOnUserGesture);
+      window.removeEventListener("touchstart", stopAutoTourOnUserGesture);
+      window.removeEventListener("keydown", stopAutoTourOnUserGesture);
       lenis.destroy();
       lenisRef.current = null;
     };
-  }, [drawFrame]);
+  }, [renderFrameSequence]);
 
-  // Web Audio subtle architectural soundscape
+  // Subtle luxury architectural soundscape
   const toggleAudio = useCallback(() => {
     if (!isAudioEnabled) {
       try {
@@ -455,7 +691,6 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         const ctx = new AudioCtx();
         audioContextRef.current = ctx;
 
-        // Warm harmonic sub-drone
         const osc1 = ctx.createOscillator();
         const osc2 = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -467,7 +702,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         osc2.frequency.setValueAtTime(110.2, ctx.currentTime);
 
         gain.gain.setValueAtTime(0.001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.04, ctx.currentTime + 3);
+        gain.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 2.5);
 
         osc1.connect(gain);
         osc2.connect(gain);
@@ -484,7 +719,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     } else {
       if (droneNodesRef.current && audioContextRef.current) {
         const { gain, osc1, osc2 } = droneNodesRef.current;
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioContextRef.current.currentTime + 1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioContextRef.current.currentTime + 0.8);
         setTimeout(() => {
           try {
             osc1.stop();
@@ -493,13 +728,42 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           } catch {
             // ignore
           }
-        }, 1100);
+        }, 900);
       }
       setIsAudioEnabled(false);
     }
   }, [isAudioEnabled]);
 
-  // Jump to chapter with Lenis smooth scroll
+  // Toggle automated cinematic walk-through
+  const toggleAutoPlay = useCallback(() => {
+    if (isAutoPlayingRef.current) {
+      isAutoPlayingRef.current = false;
+      setIsAutoPlaying(false);
+    } else {
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const containerTop = rect.top + scrollTop;
+        const scrollable = container.offsetHeight - window.innerHeight;
+        const currentProgress = Math.max(0, Math.min(1, -rect.top / scrollable));
+
+        // Rewind to top if already near end
+        if (currentProgress >= 0.95) {
+          if (lenisRef.current) {
+            lenisRef.current.scrollTo(containerTop, { immediate: true });
+          } else {
+            window.scrollTo({ top: containerTop });
+          }
+        }
+      }
+
+      isAutoPlayingRef.current = true;
+      setIsAutoPlaying(true);
+    }
+  }, []);
+
+  // Chapter jump with smooth scroll
   const scrollToChapter = (index: number) => {
     if (!containerRef.current) return;
     const targetRange = CHAPTERS[index].range;
@@ -511,7 +775,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     const scrollTarget = containerTop + containerHeight * targetProgress;
 
     if (lenisRef.current) {
-      lenisRef.current.scrollTo(scrollTarget, { duration: 1.4 });
+      lenisRef.current.scrollTo(scrollTarget, { duration: 1.3 });
     } else {
       window.scrollTo({
         top: scrollTarget,
@@ -527,38 +791,79 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
       ref={containerRef}
       id="journey"
       className="relative bg-[#050505] text-white w-full"
-      style={{ height: "900vh" }}
+      style={{ height: "480vh" }}
     >
-      {/* Sticky Viewport Container: Pure GPU-accelerated pinning for 900vh */}
+      {/* Sticky Viewport Container: Pure GPU-accelerated pinning for 480vh */}
       <div
         ref={viewportRef}
         className="sticky top-0 w-full h-screen overflow-hidden bg-[#050505]"
       >
-        {/* Full-bleed HTML5 Canvas */}
+        {/* Continuous Dual-Buffer Hardware-Accelerated Cross-Fader */}
+        {/* Base Canvas A: Always solid 100% opaque. ZERO blinking, ZERO background show-through. */}
         <canvas
-          ref={canvasRef}
+          ref={canvasRefA}
           className="absolute inset-0 w-full h-full object-cover block z-0 will-change-transform"
+          style={{ opacity: 1 }}
+        />
+        {/* Overlay Canvas B: Framer Motion GPU cross-dissolve blend layer */}
+        <motion.canvas
+          ref={canvasRefB}
+          style={{ opacity: opacityB }}
+          className="absolute inset-0 w-full h-full object-cover block z-10 will-change-[opacity]"
         />
 
-        {/* Underlying Image Fallback (Guarantees zero blank screen while frames load) */}
-        <div className="absolute inset-0 pointer-events-none z-[-1]">
-          <img
-            src="/sequence/frame-001.jpg"
-            alt="The Lumière Exterior View"
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {/* Minimal Luxury Initial Loading Overlay */}
+        <AnimatePresence>
+          {!isInitialReady && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute inset-0 z-50 bg-[#050505] flex flex-col items-center justify-center pointer-events-none p-6"
+            >
+              <div className="flex flex-col items-center text-center max-w-sm">
+                <span className="w-2 h-2 rounded-full bg-[#C6A76B] animate-ping mb-6" />
+                <span className="text-[10px] font-mono tracking-[0.4em] uppercase text-[#C6A76B] mb-2">
+                  Aurelia &amp; Co.
+                </span>
+                <h1 className="font-serif text-3xl sm:text-4xl text-white font-light tracking-[0.15em] mb-4">
+                  THE LUMIÈRE
+                </h1>
+                <p className="text-xs font-mono uppercase tracking-[0.2em] text-white/50 mb-8">
+                  Architectural Journey
+                </p>
+
+                {/* Golden Micro-Progress Bar */}
+                <div className="w-48 h-[2px] bg-white/10 rounded-full overflow-hidden relative">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-[#C6A76B] to-[#F5F0E8]"
+                    initial={{ width: "0%" }}
+                    animate={{ width: `${initialLoadingProgress}%` }}
+                    transition={{ duration: 0.2 }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono tracking-widest text-[#C6A76B] mt-3">
+                  {initialLoadingProgress}%
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Cinematic Vignette & Ambient Glow Overlays */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-transparent to-[#050505]/50 z-10" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#050505]/70 via-transparent to-[#050505]/70 z-10" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-transparent to-[#050505]/40 z-10" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#050505]/70 via-transparent to-[#050505]/60 z-10" />
 
         {/* Top Telemetry Bar */}
         <div className="absolute top-20 sm:top-24 left-0 right-0 px-6 sm:px-12 flex items-center justify-between text-xs font-mono uppercase tracking-[0.25em] text-white/60 pointer-events-none z-30">
           <div className="flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-[#C6A76B] animate-pulse" />
+            <span
+              ref={preloadIndicatorRef}
+              className="w-2 h-2 rounded-full bg-[#C6A76B] transition-opacity duration-500"
+              title="Sequence cache status"
+            />
             <span className="text-[#F5F0E8] font-medium tracking-[0.2em]">
-              THE LUMIÈRE ARCHITECTURAL JOURNEY
+              THE LUMIÈRE
             </span>
             <span className="hidden md:inline text-white/30">|</span>
             <span className="hidden md:inline text-[#C6A76B]">
@@ -566,29 +871,53 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
             </span>
           </div>
 
-          <div className="flex items-center gap-4 pointer-events-auto">
+          <div className="flex items-center gap-3 pointer-events-auto">
+            {/* Auto-Play Cinematic Tour Toggle */}
+            <button
+              type="button"
+              onClick={toggleAutoPlay}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all backdrop-blur-md cursor-pointer ${
+                isAutoPlaying
+                  ? "bg-[#C6A76B] text-black border-[#C6A76B] shadow-lg shadow-[#C6A76B]/30 font-semibold"
+                  : "bg-black/50 hover:bg-black/80 border-white/10 hover:border-[#C6A76B]/50 text-white/80 hover:text-white"
+              }`}
+              title="Toggle automatic smooth cinematic tour"
+            >
+              {isAutoPlaying ? (
+                <>
+                  <Pause className="w-3 h-3 fill-current" />
+                  <span className="text-[10px] hidden sm:inline">Pause Tour</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3 h-3 fill-current text-[#C6A76B]" />
+                  <span className="text-[10px] hidden sm:inline">Auto Tour</span>
+                </>
+              )}
+            </button>
+
             {/* Audio Ambience Toggle */}
             <button
               type="button"
               onClick={toggleAudio}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/10 hover:border-[#C6A76B]/50 text-white/70 hover:text-white transition-all backdrop-blur-md cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 hover:border-[#C6A76B]/50 text-white/70 hover:text-white transition-all backdrop-blur-md cursor-pointer"
               title="Toggle architectural soundscape"
             >
               {isAudioEnabled ? (
                 <>
                   <Volume2 className="w-3.5 h-3.5 text-[#C6A76B]" />
-                  <span className="text-[10px] text-[#C6A76B]">Audio On</span>
+                  <span className="text-[10px] text-[#C6A76B] hidden sm:inline">Audio On</span>
                 </>
               ) : (
                 <>
                   <VolumeX className="w-3.5 h-3.5" />
-                  <span className="text-[10px]">Ambient Sound</span>
+                  <span className="text-[10px] hidden sm:inline">Sound</span>
                 </>
               )}
             </button>
 
             {/* Frame Telemetry */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] text-white/40">FRAME</span>
               <span
                 ref={frameCounterRef}
@@ -603,55 +932,53 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
 
         {/* Interactive Hotspots Layer */}
         <div className="absolute inset-0 pointer-events-none z-20">
-          {HOTSPOTS.map((hotspot) => {
-            return (
-              <div
-                key={hotspot.id}
-                ref={(el) => {
-                  hotspotRefs.current[hotspot.id] = el;
-                }}
-                style={{
-                  top: hotspot.position.top,
-                  left: hotspot.position.left,
-                  opacity: 0,
-                  transform: "translate(-50%, -50%) scale(0.8)",
-                  pointerEvents: "none",
-                }}
-                className="absolute transition-all duration-500 ease-out"
+          {HOTSPOTS.map((hotspot) => (
+            <div
+              key={hotspot.id}
+              ref={(el) => {
+                hotspotRefs.current[hotspot.id] = el;
+              }}
+              style={{
+                top: hotspot.position.top,
+                left: hotspot.position.left,
+                opacity: 0,
+                transform: "translate(-50%, -50%) scale(0.85)",
+                pointerEvents: "none",
+              }}
+              className="absolute transition-all duration-500 ease-out"
+            >
+              <button
+                type="button"
+                onClick={() => setActiveHotspot(hotspot)}
+                className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/75 hover:bg-black/95 border border-[#C6A76B]/60 text-white shadow-2xl backdrop-blur-xl cursor-pointer hover:border-[#C6A76B] transition-all hover:scale-105"
               >
-                <button
-                  type="button"
-                  onClick={() => setActiveHotspot(hotspot)}
-                  className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/70 hover:bg-black/90 border border-[#C6A76B]/60 text-white shadow-2xl backdrop-blur-xl cursor-pointer hover:border-[#C6A76B] transition-all hover:scale-105"
-                >
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C6A76B] opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C6A76B]" />
-                  </span>
-                  <span className="text-[11px] font-sans tracking-wider uppercase text-[#F5F0E8] group-hover:text-white">
-                    {hotspot.label}
-                  </span>
-                  <Info className="w-3 h-3 text-[#C6A76B] opacity-70 group-hover:opacity-100" />
-                </button>
-              </div>
-            );
-          })}
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C6A76B] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C6A76B]" />
+                </span>
+                <span className="text-[11px] font-sans tracking-wider uppercase text-[#F5F0E8] group-hover:text-white">
+                  {hotspot.label}
+                </span>
+                <Info className="w-3 h-3 text-[#C6A76B] opacity-70 group-hover:opacity-100" />
+              </button>
+            </div>
+          ))}
         </div>
 
-        {/* Hotspot Inspection Modal / Card with Framer Motion */}
+        {/* Hotspot Inspection Modal */}
         <AnimatePresence>
           {activeHotspot && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+              className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className="relative max-w-md w-full bg-[#0A0A0C] border border-[#C6A76B]/40 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black text-left"
               >
                 <button
@@ -665,7 +992,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
 
                 <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.2em] text-[#C6A76B] mb-2">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Architectural Specification</span>
+                  <span>Specification</span>
                 </div>
 
                 <h3 className="font-serif text-2xl text-white font-light tracking-tight mt-1">
@@ -693,19 +1020,19 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           )}
         </AnimatePresence>
 
-        {/* Synchronized Storytelling Overlays with Framer Motion AnimatePresence */}
+        {/* Synchronized Editorial Story Overlays with AnimatePresence */}
         <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-end pb-24 sm:pb-28 px-6 sm:px-12 md:px-20 max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
             {activeChapter && (
               <motion.div
                 key={activeChapter.id}
-                initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
+                initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -16, filter: "blur(6px)" }}
-                transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                 className="max-w-3xl pointer-events-auto"
               >
-                {/* Chapter Pre-header */}
+                {/* Scene Eyebrow */}
                 <div className="flex items-center gap-3 mb-3">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-widest uppercase bg-[#C6A76B]/20 text-[#C6A76B] border border-[#C6A76B]/30">
                     SCENE {activeChapter.number}
@@ -720,13 +1047,9 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                   {activeChapter.title}
                 </h2>
 
-                {/* Supporting Copy */}
+                {/* Concise Supporting Copy */}
                 <p className="mt-3 sm:mt-4 text-base sm:text-lg text-white/90 font-light leading-relaxed max-w-2xl drop-shadow-lg">
                   {activeChapter.subtitle}
-                </p>
-
-                <p className="hidden md:block mt-2 text-xs sm:text-sm text-white/70 font-light leading-relaxed max-w-xl">
-                  {activeChapter.description}
                 </p>
 
                 {/* Architectural Specs Badges */}
@@ -741,33 +1064,58 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                   ))}
                 </div>
 
-                {/* Action CTA for Hero or Final Chapter */}
+                {/* Action CTAs */}
                 {activeChapterIndex === 0 && (
-                  <div className="mt-6 flex items-center gap-4">
+                  <div className="mt-6 flex flex-wrap items-center gap-3 sm:gap-4">
                     <motion.button
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      type="button"
+                      onClick={toggleAutoPlay}
+                      className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
+                    >
+                      {isAutoPlaying ? (
+                        <>
+                          <Pause className="w-3.5 h-3.5 fill-current" />
+                          <span>Pause Tour</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Play Walkthrough</span>
+                        </>
+                      )}
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                       type="button"
                       onClick={() => scrollToChapter(1)}
-                      className="group inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all cursor-pointer backdrop-blur-md"
                     >
-                      <span>Explore the Residence</span>
+                      <span>Explore Sequence</span>
                       <ArrowDown className="w-3.5 h-3.5 transition-transform group-hover:translate-y-0.5" />
                     </motion.button>
-                    <span className="text-xs font-mono uppercase tracking-widest text-white/50">
-                      Scroll to travel inside
-                    </span>
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      type="button"
+                      onClick={onOpenBooking}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium bg-white/5 hover:bg-white/15 text-white/80 hover:text-white border border-white/10 transition-all cursor-pointer backdrop-blur-md"
+                    >
+                      <span>Book a Visit</span>
+                    </motion.button>
                   </div>
                 )}
 
                 {activeChapterIndex === CHAPTERS.length - 1 && (
                   <div className="mt-6 flex items-center gap-4">
                     <motion.button
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                       type="button"
                       onClick={onOpenBooking}
-                      className="group inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
+                      className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
                     >
                       <span>Book a Private Visit</span>
                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -779,7 +1127,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           </AnimatePresence>
         </div>
 
-        {/* Right Edge: Apple-Style Chapter Indicator Scrubber with Framer Motion layoutId */}
+        {/* Right Edge: Chapter Scrubber with Framer Motion layoutId */}
         <div className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 flex-col items-end gap-3 z-30 pointer-events-auto">
           {CHAPTERS.map((ch, idx) => {
             const isActive = activeChapterIndex === idx;

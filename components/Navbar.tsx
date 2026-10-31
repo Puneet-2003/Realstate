@@ -1,9 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
-import { Menu, X, ArrowRight, Phone, Calendar, Sparkles } from "lucide-react";
+import { motion, useScroll, useSpring } from "framer-motion";
+import { Menu, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  RippleButton,
+  RippleButtonRipples,
+} from "@animate-ui/react/primitives/buttons/ripple";
 
 interface NavbarProps {
   onOpenBooking: () => void;
@@ -137,89 +152,112 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
               })}
             </nav>
 
-            {/* Right: Book a Private Visit CTA */}
+            {/* Right: Book a Private Visit CTA & Animate UI Tooltip */}
             <div className="flex items-center gap-3">
-              <a
-                href="https://wa.me/442079460912?text=Hello%2C%20I%20would%20like%20to%20inquire%20about%20The%20Lumi%C3%A8re%20private%20residences."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden xl:flex items-center gap-2 text-xs uppercase tracking-wider text-white/50 hover:text-[#C6A76B] transition-colors"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Private Desk</span>
-              </a>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href="https://wa.me/442079460912?text=Hello%2C%20I%20would%20like%20to%20inquire%20about%20The%20Lumi%C3%A8re%20private%20residences."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden xl:flex items-center gap-2 text-xs uppercase tracking-wider text-white/60 hover:text-[#C6A76B] transition-colors px-3 py-1.5 rounded-full border border-white/5 hover:border-[#C6A76B]/30 bg-white/[0.02]"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Private Desk</span>
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent className="bg-[#0e0e14] border-[#C6A76B]/40 text-white text-xs max-w-xs p-3 shadow-xl">
+                  <div className="flex items-center gap-1.5 text-[#C6A76B] font-mono text-[10px] uppercase tracking-wider mb-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Direct Concierge Portal</span>
+                  </div>
+                  <p className="text-[11px] text-white/80 leading-snug">
+                    Encrypted priority line to our senior residential director. Typical response under 5 minutes.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
 
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                type="button"
+              {/* Animate UI Ripple Button */}
+              <RippleButton
                 onClick={onOpenBooking}
-                className="group relative inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#C6A76B] hover:bg-[#d8be85] transition-colors duration-300 shadow-lg shadow-[#C6A76B]/20 cursor-pointer"
+                hoverScale={1.03}
+                tapScale={0.97}
+                className="group relative inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#C6A76B] hover:bg-[#d8be85] transition-colors duration-300 shadow-lg shadow-[#C6A76B]/20 cursor-pointer overflow-hidden"
               >
-                <span>Book a Private Visit</span>
-                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-              </motion.button>
+                <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
+                <span className="relative z-10 flex items-center gap-2">
+                  <span>Book a Private Visit</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+                </span>
+              </RippleButton>
 
-              {/* Mobile Hamburger */}
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-white/80 hover:text-white rounded-lg hover:bg-white/5 focus:outline-none cursor-pointer"
-                aria-label="Toggle Navigation Menu"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+              {/* Animate UI Animated Sheet Mobile Navigation */}
+              <div className="md:hidden">
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-2 text-white/80 hover:text-white rounded-lg hover:bg-white/5 focus:outline-none cursor-pointer"
+                      aria-label="Toggle Navigation Menu"
+                    >
+                      <Menu className="w-6 h-6" />
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent
+                    side="right"
+                    className="w-full sm:max-w-md bg-[#070709] border-white/10 p-6 flex flex-col justify-between text-white"
+                  >
+                    <div>
+                      <SheetHeader className="p-0 mb-8 text-left">
+                        <SheetTitle className="font-serif text-2xl tracking-[0.15em] text-[#C6A76B] uppercase font-light">
+                          THE LUMIÈRE
+                        </SheetTitle>
+                        <span className="text-[10px] font-mono tracking-[0.25em] text-white/40 uppercase">
+                          Private Residences &amp; Penthouses
+                        </span>
+                      </SheetHeader>
+
+                      <div className="flex flex-col space-y-4">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-[#C6A76B]">
+                          Explore Architecture
+                        </span>
+                        {navLinks.map((link) => (
+                          <a
+                            key={link.label}
+                            href={link.href}
+                            onClick={(e) => handleNavClick(e, link.href)}
+                            className="text-2xl font-serif text-white hover:text-[#C6A76B] transition-colors py-2.5 border-b border-white/5"
+                          >
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-6 border-t border-white/10">
+                      <RippleButton
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          onOpenBooking();
+                        }}
+                        className="w-full py-3.5 rounded-full text-center text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black shadow-xl cursor-pointer"
+                      >
+                        <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
+                        <span className="relative z-10">Book a Private Visit</span>
+                      </RippleButton>
+
+                      <div className="flex items-center justify-between text-xs font-mono text-white/40 pt-2">
+                        <span>THE LUMIÈRE TOWER</span>
+                        <span className="text-[#C6A76B]">68 FLOORS</span>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
             </div>
           </div>
         </div>
       </motion.header>
-
-      {/* Mobile Drawer Menu with AnimatePresence */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-40 bg-[#050505]/95 backdrop-blur-2xl flex flex-col justify-between pt-24 pb-8 px-6 md:hidden"
-          >
-            <div className="flex flex-col space-y-4">
-              <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-[#C6A76B]">
-                Navigation
-              </span>
-              {navLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={(e) => handleNavClick(e, link.href)}
-                  className="text-2xl font-serif text-white hover:text-[#C6A76B] transition-colors py-2 border-b border-white/5"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </div>
-
-            <div className="space-y-4 pt-6 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenBooking();
-                }}
-                className="w-full py-3.5 rounded-full text-center text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black shadow-xl"
-              >
-                Book a Private Visit
-              </button>
-
-              <div className="flex items-center justify-between text-xs font-mono text-white/40 pt-2">
-                <span>THE LUMIÈRE TOWER</span>
-                <span className="text-[#C6A76B]">68 FLOORS</span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }
