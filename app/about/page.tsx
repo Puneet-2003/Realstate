@@ -65,19 +65,19 @@ export default function AboutPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#070709] text-white flex flex-col">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#241810] flex flex-col">
       <Navbar />
 
-      <main className="flex-1 pt-28 sm:pt-36">
+      <main className="flex-1 py-12">
         {/* Hero Banner */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 border-b border-white/10">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#c5a880] font-semibold mb-3">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 border-b border-[#8C5A30]/15">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#7F4F24] font-semibold mb-3">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Heritage &amp; Stewardship</span>
           </div>
-          <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-light text-white tracking-tight leading-[1.08] max-w-4xl">
+          <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-light text-[#241810] tracking-tight leading-[1.08] max-w-4xl">
             Where Architectural Artistry <br />
-            <span className="italic font-normal text-gold-gradient">Meets Sovereign Discretion.</span>
+            <span className="italic font-normal text-[#7F4F24]">Meets Sovereign Discretion.</span>
           </h1>
           <p className="mt-8 text-base sm:text-lg text-zinc-300 font-light max-w-2xl leading-relaxed">
             Aurelia &amp; Co. was conceived not as a brokerage, but as a private curatorial salon. We believe
@@ -125,23 +125,23 @@ export default function AboutPage() {
         </section>
 
         {/* Timeline */}
-        <section className="py-20 bg-[#09090e] border-t border-b border-white/5">
+        <section className="py-20 bg-[#F5EFEB] border-t border-b border-[#8C5A30]/15">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mb-12">
-              <span className="text-xs uppercase tracking-widest text-[#c5a880] font-semibold">
+              <span className="text-xs uppercase tracking-widest text-[#7F4F24] font-semibold">
                 Evolution
               </span>
-              <h2 className="font-serif text-3xl sm:text-4xl text-white font-light mt-1">
+              <h2 className="font-serif text-3xl sm:text-4xl text-[#241810] font-light mt-1">
                 Nineteen Years of Curatorial Excellence
               </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {milestones.map((m) => (
-                <div key={m.year} className="p-6 rounded-2xl bg-[#111116] border border-white/10">
-                  <span className="font-serif text-3xl text-[#c5a880] font-medium">{m.year}</span>
-                  <h4 className="text-base font-serif text-white mt-2">{m.title}</h4>
-                  <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-light">{m.description}</p>
+                <div key={m.year} className="p-6 rounded-2xl bg-white border border-[#E5DACB] shadow-sm">
+                  <span className="font-serif text-3xl text-[#7F4F24] font-medium">{m.year}</span>
+                  <h4 className="text-base font-serif text-[#241810] mt-2 font-medium">{m.title}</h4>
+                  <p className="text-xs text-[#6B5B51] mt-2 leading-relaxed font-light">{m.description}</p>
                 </div>
               ))}
             </div>

@@ -135,19 +135,19 @@ export function PropertyDetailClient({
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Breadcrumb & Actions */}
-        <div className="flex items-center justify-between text-xs text-zinc-400 mb-6">
+        <div className="flex items-center justify-between text-xs text-[#6B5B51] mb-6">
           <div className="flex items-center gap-2">
-            <Link href="/" className="hover:text-white transition-colors">Home</Link>
+            <Link href="/" className="hover:text-[#241810] transition-colors">Home</Link>
             <span>/</span>
-            <Link href="/properties" className="hover:text-white transition-colors">Properties</Link>
+            <Link href="/properties" className="hover:text-[#241810] transition-colors">Properties</Link>
             <span>/</span>
-            <span className="text-[#c5a880]">{property.title}</span>
+            <span className="text-[#7F4F24] font-medium">{property.title}</span>
           </div>
 
           <button
             type="button"
             onClick={handleShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 hover:border-[#c5a880] text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#8C5A30]/25 hover:border-[#7F4F24] text-[#7F4F24] hover:text-[#241810] transition-colors cursor-pointer"
           >
             <Share2 className="w-3.5 h-3.5" />
             <span>{copiedLink ? "Link Copied!" : "Share Dossier"}</span>
@@ -155,42 +155,42 @@ export function PropertyDetailClient({
         </div>
 
         {/* Property Header */}
-        <div className="pb-8 border-b border-white/10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="pb-8 border-b border-[#8C5A30]/20 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-2.5 mb-2">
-              <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-semibold bg-[#c5a880]/20 text-[#c5a880] border border-[#c5a880]/30">
+              <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-semibold bg-[#7F4F24] text-white">
                 {property.category}
               </span>
-              <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest bg-white/5 text-zinc-300 border border-white/10">
+              <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest bg-black/60 text-white border border-white/10">
                 {property.status}
               </span>
               {property.signature && (
-                <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest bg-[#c5a880] text-black font-semibold">
+                <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest bg-[#C89D5C] text-[#18110B] font-semibold">
                   <Sparkles className="w-3 h-3" />
                   <span>Signature Reserve</span>
                 </span>
               )}
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight mt-1">
+            <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-[#241810] font-light tracking-tight mt-1">
               {property.title}
             </h1>
 
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-zinc-300 mt-2">
-              <MapPin className="w-4 h-4 text-[#c5a880]" />
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-[#6B5B51] mt-2">
+              <MapPin className="w-4 h-4 text-[#7F4F24]" />
               <span>{property.location.address}, {property.location.city}, {property.location.country}</span>
             </div>
           </div>
 
           <div className="lg:text-right">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-400 block font-mono">
+            <span className="text-[10px] uppercase tracking-widest text-[#7F4F24] block font-mono font-semibold">
               Guide Price
             </span>
-            <div className="text-3xl sm:text-4xl lg:text-5xl font-serif text-gold-accent font-normal mt-0.5">
+            <div className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#7F4F24] font-normal mt-0.5">
               {property.priceFormatted}
             </div>
             {property.pricePerSqFt && (
-              <span className="text-xs text-zinc-400 block mt-1">
+              <span className="text-xs text-[#6B5B51] block mt-1 font-mono">
                 {property.pricePerSqFt}
               </span>
             )}
@@ -247,30 +247,30 @@ export function PropertyDetailClient({
         </div>
 
         {/* Specifications Matrix Bar */}
-        <div className="mt-8 p-6 rounded-2xl bg-[#0e0e14] border border-white/10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 text-left">
+        <div className="mt-8 p-6 rounded-2xl bg-white border border-[#E5DACB] shadow-sm grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 text-left">
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-400 block font-mono">Bedrooms</span>
-            <span className="text-base sm:text-lg font-serif text-white">{property.bedrooms} Suites</span>
+            <span className="text-[10px] uppercase tracking-wider text-[#7F4F24] block font-mono font-semibold">Bedrooms</span>
+            <span className="text-base sm:text-lg font-serif text-[#241810]">{property.bedrooms} Suites</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-400 block font-mono">Bathrooms</span>
-            <span className="text-base sm:text-lg font-serif text-white">{property.bathrooms} Baths</span>
+            <span className="text-[10px] uppercase tracking-wider text-[#7F4F24] block font-mono font-semibold">Bathrooms</span>
+            <span className="text-base sm:text-lg font-serif text-[#241810]">{property.bathrooms} Baths</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-400 block font-mono">Internal Living</span>
-            <span className="text-base sm:text-lg font-serif text-white">{formatNumber(property.areaSqFt)} sq ft</span>
+            <span className="text-[10px] uppercase tracking-wider text-[#7F4F24] block font-mono font-semibold">Internal Living</span>
+            <span className="text-base sm:text-lg font-serif text-[#241810]">{formatNumber(property.areaSqFt)} sq ft</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-400 block font-mono">Lot Size</span>
-            <span className="text-base sm:text-lg font-serif text-white">{property.lotSize || "Private Reserve"}</span>
+            <span className="text-[10px] uppercase tracking-wider text-[#7F4F24] block font-mono font-semibold">Lot Size</span>
+            <span className="text-base sm:text-lg font-serif text-[#241810]">{property.lotSize || "Private Reserve"}</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-400 block font-mono">Architect</span>
-            <span className="text-base sm:text-lg font-serif text-white truncate block">{property.architect || "Atelier Private"}</span>
+            <span className="text-[10px] uppercase tracking-wider text-[#7F4F24] block font-mono font-semibold">Architect</span>
+            <span className="text-base sm:text-lg font-serif text-[#241810] truncate block">{property.architect || "Atelier Private"}</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-400 block font-mono">Completion</span>
-            <span className="text-base sm:text-lg font-serif text-white">{property.specs.completionYear}</span>
+            <span className="text-[10px] uppercase tracking-wider text-[#7F4F24] block font-mono font-semibold">Completion</span>
+            <span className="text-base sm:text-lg font-serif text-[#241810]">{property.specs.completionYear}</span>
           </div>
         </div>
 
@@ -280,15 +280,15 @@ export function PropertyDetailClient({
           <div className="lg:col-span-8 space-y-12">
             {/* Description & Narrative */}
             <div>
-              <h3 className="font-serif text-2xl sm:text-3xl text-white font-light">
+              <h3 className="font-serif text-2xl sm:text-3xl text-[#241810] font-light">
                 Architectural Monograph
               </h3>
-              <p className="mt-4 text-sm sm:text-base text-zinc-300 font-light leading-relaxed">
+              <p className="mt-4 text-sm sm:text-base text-[#6B5B51] font-light leading-relaxed">
                 {property.description}
               </p>
-              <div className="mt-6 p-5 rounded-2xl bg-white/[0.03] border-l-2 border-[#c5a880] text-sm text-zinc-300 italic">
+              <div className="mt-6 p-5 rounded-2xl bg-white border border-[#E5DACB] border-l-4 border-l-[#7F4F24] text-sm text-[#241810] italic shadow-xs">
                 &ldquo;{property.architecturalPhilosophy}&rdquo;
-                <span className="block not-italic font-medium text-[#c5a880] mt-2 text-xs">
+                <span className="block not-italic font-semibold text-[#7F4F24] mt-2 text-xs">
                   — Architectural Philosophy &amp; Material Intent
                 </span>
               </div>
@@ -296,16 +296,16 @@ export function PropertyDetailClient({
 
             {/* Comprehensive Amenities Grid */}
             <div>
-              <h3 className="font-serif text-2xl sm:text-3xl text-white font-light">
+              <h3 className="font-serif text-2xl sm:text-3xl text-[#241810] font-light">
                 Curated Amenities &amp; Private Infrastructure
               </h3>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {property.amenities.map((amenity) => (
                   <div
                     key={amenity}
-                    className="flex items-center gap-3 p-3.5 rounded-xl bg-[#0f0f16] border border-white/5 text-xs text-zinc-200"
+                    className="flex items-center gap-3 p-3.5 rounded-xl bg-white border border-[#E5DACB] text-xs text-[#241810] shadow-xs"
                   >
-                    <Check className="w-4 h-4 text-[#c5a880] shrink-0" />
+                    <Check className="w-4 h-4 text-[#7F4F24] shrink-0" />
                     <span>{amenity}</span>
                   </div>
                 ))}
@@ -317,16 +317,16 @@ export function PropertyDetailClient({
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                   <div>
-                    <span className="text-[10px] uppercase tracking-widest text-[#c5a880] font-semibold">
+                    <span className="text-[10px] uppercase tracking-widest text-[#7F4F24] font-semibold">
                       Spatial Layout
                     </span>
-                    <h3 className="font-serif text-2xl sm:text-3xl text-white font-light">
+                    <h3 className="font-serif text-2xl sm:text-3xl text-[#18110B] font-light">
                       Architectural Floor Levels
                     </h3>
                   </div>
 
                   {/* Level Tabs */}
-                  <div className="flex items-center gap-1.5 p-1 rounded-full bg-black/60 border border-white/10 overflow-x-auto">
+                  <div className="flex items-center gap-1.5 p-1 rounded-full bg-[#FAF7F2] border border-[#E5DACB] overflow-x-auto">
                     {property.floorPlans.map((fp, idx) => (
                       <button
                         key={fp.level}
@@ -334,8 +334,8 @@ export function PropertyDetailClient({
                         onClick={() => setActiveFloorIndex(idx)}
                         className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all cursor-pointer ${
                           activeFloorIndex === idx
-                            ? "bg-[#c5a880] text-black font-semibold"
-                            : "text-zinc-400 hover:text-white"
+                            ? "bg-[#7F4F24] text-white font-semibold shadow-xs"
+                            : "text-[#6A5A4D] hover:text-[#18110B]"
                         }`}
                       >
                         {fp.level.split(" - ")[0]}
@@ -345,32 +345,32 @@ export function PropertyDetailClient({
                 </div>
 
                 {/* Active Level Detail Card */}
-                <div className="p-6 sm:p-8 rounded-2xl bg-[#0e0e14] border border-white/10">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-white/10">
+                <div className="p-6 sm:p-8 rounded-2xl bg-white border border-[#E5DACB] shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-[#EFE5D8]">
                     <div>
-                      <span className="text-xs uppercase tracking-widest text-[#c5a880] font-mono">
+                      <span className="text-xs uppercase tracking-widest text-[#7F4F24] font-mono font-medium">
                         {activeFloor.level}
                       </span>
-                      <h4 className="text-xl font-serif text-white mt-0.5">{activeFloor.title}</h4>
+                      <h4 className="text-xl font-serif text-[#18110B] mt-0.5">{activeFloor.title}</h4>
                     </div>
-                    <span className="text-sm font-serif text-zinc-300">
+                    <span className="text-sm font-serif text-[#5A4B3E]">
                       {formatNumber(activeFloor.sqFt)} sq ft ({activeFloor.sqM} sq m)
                     </span>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-zinc-300 mt-4 font-light leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#5A4B3E] mt-4 font-light leading-relaxed">
                     {activeFloor.description}
                   </p>
 
-                  <div className="mt-6 pt-4 border-t border-white/10">
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-400 block mb-2 font-mono">
+                  <div className="mt-6 pt-4 border-t border-[#EFE5D8]">
+                    <span className="text-[10px] uppercase tracking-wider text-[#7F4F24] block mb-2 font-mono font-semibold">
                       Designated Spatial Zones
                     </span>
                     <div className="flex flex-wrap gap-2">
                       {activeFloor.rooms.map((room) => (
                         <span
                           key={room}
-                          className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-300"
+                          className="px-3 py-1 rounded-lg bg-[#FAF7F2] border border-[#E5DACB] text-xs text-[#241810]"
                         >
                           {room}
                         </span>
@@ -383,29 +383,29 @@ export function PropertyDetailClient({
 
             {/* Neighborhood / Geographic Context */}
             <div>
-              <h3 className="font-serif text-2xl sm:text-3xl text-white font-light">
+              <h3 className="font-serif text-2xl sm:text-3xl text-[#18110B] font-light">
                 Geographic Positioning &amp; Environs
               </h3>
-              <div className="mt-6 p-6 rounded-2xl bg-[#0e0e14] border border-white/10">
+              <div className="mt-6 p-6 rounded-2xl bg-white border border-[#E5DACB] shadow-xs">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-[#c5a880]/10 flex items-center justify-center text-[#c5a880]">
+                  <div className="w-10 h-10 rounded-full bg-[#7F4F24]/10 flex items-center justify-center text-[#7F4F24]">
                     <Compass className="w-5 h-5" />
                   </div>
                   <div>
-                    <h5 className="text-base font-serif text-white">{property.location.neighborhood}</h5>
-                    <span className="text-xs text-zinc-400">
+                    <h5 className="text-base font-serif text-[#18110B]">{property.location.neighborhood}</h5>
+                    <span className="text-xs text-[#6A5A4D]">
                       Coordinates: {property.location.coordinates.lat}° N, {property.location.coordinates.lng}° W
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs sm:text-sm text-zinc-300 font-light leading-relaxed">
+                <p className="text-xs sm:text-sm text-[#5A4B3E] font-light leading-relaxed">
                   Situated in {property.location.city}&apos;s most protected ultra-prime corridor. The property
                   benefits from total gated seclusion, private surveillance monitoring, direct helicopter access,
                   and immediate proximity to international private aviation airports.
                 </p>
 
-                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-zinc-400">
+                <div className="mt-4 pt-4 border-t border-[#EFE5D8] flex items-center justify-between text-xs text-[#6A5A4D]">
                   <span>Private Airport: 18 min</span>
                   <span>Marina / Harbor: 12 min</span>
                   <span>Michelin Dining: 5 min</span>
@@ -418,21 +418,21 @@ export function PropertyDetailClient({
           <div className="lg:col-span-4">
             <div className="sticky top-28 space-y-6">
               {/* Action Box */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-[#0d0d12] border border-[#c5a880]/30 shadow-2xl">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#c5a880] font-semibold mb-2">
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#18110B] border border-[#C89D5C]/30 shadow-2xl">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#DFBD85] font-semibold mb-2">
                   <Shield className="w-3.5 h-3.5" />
                   <span>Private Office Desk</span>
                 </div>
                 <h4 className="text-2xl font-serif text-white">Arrange a Viewing</h4>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                <p className="text-xs text-[#D8C3AC] mt-1 leading-relaxed">
                   Strictly confidential private viewings arranged exclusively for verified principals.
                 </p>
 
                 {inquirySubmitted ? (
-                  <div className="mt-6 p-4 rounded-xl bg-[#c5a880]/10 border border-[#c5a880]/30 text-center">
-                    <CheckCircle2 className="w-8 h-8 text-[#c5a880] mx-auto mb-2" />
+                  <div className="mt-6 p-4 rounded-xl bg-[#7F4F24]/20 border border-[#C89D5C]/40 text-center">
+                    <CheckCircle2 className="w-8 h-8 text-[#DFBD85] mx-auto mb-2" />
                     <span className="text-xs text-white font-medium block">Inquiry Transmitted</span>
-                    <span className="text-[11px] text-zinc-300 block mt-1">
+                    <span className="text-[11px] text-[#D8C3AC] block mt-1">
                       Our Senior Partner will reach out via confidential channels.
                     </span>
                   </div>
@@ -450,7 +450,7 @@ export function PropertyDetailClient({
                         value={inquiryName}
                         onChange={(e) => setInquiryName(e.target.value)}
                         placeholder="Full Legal Name"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-[#c5a880] transition-colors"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white placeholder-zinc-400 text-xs focus:outline-none focus:border-[#DFBD85] transition-colors"
                       />
                     </div>
                     <div>
@@ -460,7 +460,7 @@ export function PropertyDetailClient({
                         value={inquiryEmail}
                         onChange={(e) => setInquiryEmail(e.target.value)}
                         placeholder="Confidential Email Address"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-[#c5a880] transition-colors"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white placeholder-zinc-400 text-xs focus:outline-none focus:border-[#DFBD85] transition-colors"
                       />
                     </div>
                     <div>
@@ -469,13 +469,13 @@ export function PropertyDetailClient({
                         value={inquiryPhone}
                         onChange={(e) => setInquiryPhone(e.target.value)}
                         placeholder="Direct Phone / WhatsApp"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-[#c5a880] transition-colors"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white placeholder-zinc-400 text-xs focus:outline-none focus:border-[#DFBD85] transition-colors"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full py-3 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#c5a880] hover:bg-[#dfc293] transition-all shadow-xl shadow-[#c5a880]/20 flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-3 rounded-full text-xs uppercase tracking-widest font-semibold text-white bg-[#7F4F24] hover:bg-[#8C5A30] transition-all shadow-xl shadow-[#7F4F24]/30 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>Transmit Viewing Request</span>
@@ -488,7 +488,7 @@ export function PropertyDetailClient({
                     href={`https://wa.me/442079460912?text=${whatsappMessage}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-2.5 rounded-full text-center text-xs uppercase tracking-wider text-zinc-300 border border-white/15 hover:border-[#c5a880] transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-full text-center text-xs uppercase tracking-wider text-[#D8C3AC] border border-[#C89D5C]/30 hover:border-[#DFBD85] hover:text-white transition-colors flex items-center justify-center gap-2"
                   >
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
                     Direct WhatsApp Advisory
@@ -497,7 +497,7 @@ export function PropertyDetailClient({
                   <button
                     type="button"
                     onClick={() => setIsConsultationOpen(true)}
-                    className="w-full py-2.5 rounded-full text-center text-xs uppercase tracking-wider text-zinc-400 hover:text-white transition-colors"
+                    className="w-full py-2.5 rounded-full text-center text-xs uppercase tracking-wider text-[#D8C3AC]/70 hover:text-white transition-colors cursor-pointer"
                   >
                     Request Bespoke Acquisition Dossier
                   </button>
@@ -505,9 +505,9 @@ export function PropertyDetailClient({
               </div>
 
               {/* Private Security & Verification Badge */}
-              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 text-xs text-zinc-400 space-y-2">
-                <div className="flex items-center gap-2 text-white font-medium">
-                  <Shield className="w-4 h-4 text-[#c5a880]" />
+              <div className="p-5 rounded-2xl bg-white border border-[#E5DACB] text-xs text-[#5A4B3E] shadow-xs space-y-2">
+                <div className="flex items-center gap-2 text-[#18110B] font-medium">
+                  <Shield className="w-4 h-4 text-[#7F4F24]" />
                   <span>Verified Legal Provenance</span>
                 </div>
                 <p className="text-[11px] leading-relaxed">
@@ -521,19 +521,19 @@ export function PropertyDetailClient({
 
         {/* Related Residences Section */}
         {relatedProperties.length > 0 && (
-          <div className="mt-24 pt-16 border-t border-white/10">
+          <div className="mt-24 pt-16 border-t border-[#E5DACB]">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <span className="text-[10px] uppercase tracking-widest text-[#c5a880] font-semibold">
+                <span className="text-[10px] uppercase tracking-widest text-[#7F4F24] font-semibold">
                   Complementary Residences
                 </span>
-                <h3 className="font-serif text-2xl sm:text-4xl text-white font-light">
+                <h3 className="font-serif text-2xl sm:text-4xl text-[#18110B] font-light">
                   You May Also Consider
                 </h3>
               </div>
               <Link
                 href="/properties"
-                className="text-xs uppercase tracking-widest text-[#c5a880] hover:text-white transition-colors flex items-center gap-1"
+                className="text-xs uppercase tracking-widest text-[#7F4F24] hover:text-[#5C3919] font-medium transition-colors flex items-center gap-1"
               >
                 <span>View Full Portfolio</span>
                 <ArrowRight className="w-3.5 h-3.5" />

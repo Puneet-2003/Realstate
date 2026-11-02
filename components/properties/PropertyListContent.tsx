@@ -65,26 +65,26 @@ export function PropertyListContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
       {/* Header bar */}
-      <div className="pb-8 border-b border-white/10">
-        <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#c5a880] font-semibold mb-2">
-          <Sparkles className="w-3.5 h-3.5" />
+      <div className="pb-8 border-b border-[#D8C3AC]">
+        <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#6B3F1B] font-bold mb-2">
+          <Sparkles className="w-3.5 h-3.5 text-[#8C5A30]" />
           <span>The Global Collection</span>
         </div>
-        <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight">
-          Exceptional <span className="italic font-normal text-gold-gradient">Residences.</span>
+        <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-[#120C08] font-normal tracking-tight">
+          Exceptional <span className="italic font-normal text-[#7F4F24]">Residences.</span>
         </h1>
-        <p className="mt-3 text-sm text-zinc-400 font-light max-w-2xl leading-relaxed">
+        <p className="mt-3 text-sm sm:text-base text-[#2D2018] font-normal max-w-2xl leading-relaxed">
           Explore vetted architectural monuments, waterfront pavilions, and trophy penthouses available
           for private acquisition and long-term lease.
         </p>
       </div>
 
       {/* Main Filter Bar */}
-      <div className="mt-8 p-4 sm:p-5 rounded-2xl bg-[#0e0e14] border border-white/10 shadow-2xl">
+      <div className="mt-8 p-4 sm:p-5 rounded-2xl bg-white border border-[#D8C3AC] shadow-md shadow-[#2D1A0B]/6">
         {/* Top Controls: Buy/Rent tabs, search input, reset, grid/list */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#D8C3AC]">
           {/* Buy / Rent / All Segment */}
-          <div className="inline-flex p-1 rounded-full bg-black/60 border border-white/10 self-start">
+          <div className="inline-flex p-1 rounded-full bg-[#FAF7F2] border border-[#D8C3AC] self-start">
             {(["All", "Buy", "Rent"] as const).map((type) => (
               <button
                 key={type}
@@ -92,8 +92,8 @@ export function PropertyListContent() {
                 onClick={() => handleListingTypeChange(type)}
                 className={`px-4 sm:px-5 py-1.5 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
                   filters.listingType === type
-                    ? "bg-[#c5a880] text-black shadow-md shadow-[#c5a880]/20"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-[#7F4F24] text-white shadow-md shadow-[#7F4F24]/20"
+                    : "text-[#2D2018] hover:text-[#120C08]"
                 }`}
               >
                 {type === "All" ? "All Formats" : type === "Buy" ? "Acquisition" : "Lease"}
@@ -103,20 +103,20 @@ export function PropertyListContent() {
 
           {/* Search Input */}
           <div className="flex-1 max-w-md">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 focus-within:border-[#c5a880] transition-colors">
-              <Search className="w-4 h-4 text-zinc-400 shrink-0" />
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#D8C3AC] focus-within:border-[#7F4F24] transition-colors">
+              <Search className="w-4 h-4 text-[#7F4F24] shrink-0" />
               <input
                 type="text"
                 value={filters.location}
                 onChange={(e) => setFilters((prev) => ({ ...prev, location: e.target.value }))}
                 placeholder="Search city, architect, country..."
-                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none"
+                className="w-full bg-transparent text-xs sm:text-sm text-[#120C08] font-medium placeholder-[#7F6B60] focus:outline-none"
               />
               {filters.location && (
                 <button
                   type="button"
                   onClick={() => setFilters((prev) => ({ ...prev, location: "" }))}
-                  className="text-xs text-zinc-400 hover:text-white"
+                  className="text-xs text-[#7F4F24] hover:text-[#120C08] font-bold cursor-pointer"
                 >
                   Clear
                 </button>
@@ -130,22 +130,22 @@ export function PropertyListContent() {
               type="button"
               onClick={resetFilters}
               title="Reset all filters"
-              className="px-3 py-2 rounded-xl border border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-2 rounded-xl border border-[#8C5A30]/20 text-[#7F4F24] hover:text-white hover:bg-[#7F4F24] text-xs flex items-center gap-1.5 transition-colors cursor-pointer font-semibold"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
             </button>
 
             {/* Grid vs List View */}
-            <div className="inline-flex p-1 rounded-xl bg-black/60 border border-white/10">
+            <div className="inline-flex p-1 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20">
               <button
                 type="button"
                 onClick={() => setFilters((prev) => ({ ...prev, viewMode: "grid" }))}
                 aria-label="Grid view"
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                   filters.viewMode === "grid"
-                    ? "bg-[#c5a880] text-black"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-[#7F4F24] text-white"
+                    : "text-[#6B5B51] hover:text-[#241810]"
                 }`}
               >
                 <Grid className="w-4 h-4" />
@@ -156,8 +156,8 @@ export function PropertyListContent() {
                 aria-label="List view"
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                   filters.viewMode === "list"
-                    ? "bg-[#c5a880] text-black"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-[#7F4F24] text-white"
+                    : "text-[#6B5B51] hover:text-[#241810]"
                 }`}
               >
                 <List className="w-4 h-4" />
@@ -170,13 +170,13 @@ export function PropertyListContent() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
           {/* Category */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
               Typology
             </label>
             <select
               value={filters.category}
               onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value }))}
-              className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs text-white focus:outline-none focus:border-[#c5a880] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#241810] focus:outline-none focus:border-[#7F4F24] cursor-pointer"
             >
               <option value="All">All Categories</option>
               <option value="Luxury Villa">Luxury Villa</option>
@@ -189,13 +189,13 @@ export function PropertyListContent() {
 
           {/* Min Price */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
               Minimum Price
             </label>
             <select
               value={filters.minPrice}
               onChange={(e) => setFilters((prev) => ({ ...prev, minPrice: Number(e.target.value) }))}
-              className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs text-white focus:outline-none focus:border-[#c5a880] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#241810] focus:outline-none focus:border-[#7F4F24] cursor-pointer"
             >
               <option value={0}>No Minimum</option>
               <option value={20000000}>$20,000,000+</option>
@@ -206,7 +206,7 @@ export function PropertyListContent() {
 
           {/* Bedrooms */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
               Bedrooms
             </label>
             <select
@@ -217,7 +217,7 @@ export function PropertyListContent() {
                   bedrooms: e.target.value === "All" ? "All" : Number(e.target.value),
                 }))
               }
-              className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs text-white focus:outline-none focus:border-[#c5a880] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#241810] focus:outline-none focus:border-[#7F4F24] cursor-pointer"
             >
               <option value="All">Any Bedrooms</option>
               <option value={4}>4+ Bedrooms</option>
@@ -229,7 +229,7 @@ export function PropertyListContent() {
 
           {/* Sorting */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
               Sort By
             </label>
             <select
@@ -237,7 +237,7 @@ export function PropertyListContent() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, sortBy: e.target.value as FilterState["sortBy"] }))
               }
-              className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs text-[#c5a880] font-medium focus:outline-none focus:border-[#c5a880] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#7F4F24] font-semibold focus:outline-none focus:border-[#7F4F24] cursor-pointer"
             >
               <option value="featured">Curated (Featured)</option>
               <option value="price-desc">Price: Highest First</option>

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@animate-ui/react": "^2.4.1",
+    "@gsap/react": "^2.1.2",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "@types/three": "^0.186.0",

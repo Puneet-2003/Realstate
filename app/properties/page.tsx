@@ -27,9 +27,9 @@ function PropertyListSkeleton() {
 
 export default function PropertiesPage() {
   return (
-    <div className="min-h-screen bg-[#070709] text-white flex flex-col">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#120C08] flex flex-col">
       <Navbar />
-      <main className="flex-1 pt-24 sm:pt-28">
+      <main className="flex-1 py-8 sm:py-12">
         <Suspense fallback={<PropertyListSkeleton />}>
           <PropertyListContent />
         </Suspense>

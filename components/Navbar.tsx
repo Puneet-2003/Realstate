@@ -1,263 +1,257 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, useScroll, useSpring } from "framer-motion";
-import { Menu, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
-import {
-  Sheet,
-  SheetTrigger,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  RippleButton,
-  RippleButtonRipples,
-} from "@animate-ui/react/primitives/buttons/ripple";
+import Link from "next/link";
+import { motion, AnimatePresence } from "motion/react";
+import { X, ArrowRight, Calendar, Phone, Sparkles, MessageCircle } from "lucide-react";
+import { useFavorites } from "@/lib/favorites";
+import { useLenis } from "@/components/animation";
 
 interface NavbarProps {
-  onOpenBooking: () => void;
+  onOpenBooking?: () => void;
 }
 
 export function Navbar({ onOpenBooking }: NavbarProps) {
-  const [scrolled, setScrolled] = useState(false);
-  const [activeSection, setActiveSection] = useState("overview");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { favoritesCount } = useFavorites();
+  const { scrollTo } = useLenis();
 
-  // Smooth scroll progress spring bar
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 120,
-    damping: 28,
-    restDelta: 0.001,
-  });
-
+  // Close menu on Escape key
   useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 40) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
-
-      const sections = [
-        { id: "overview", el: document.getElementById("journey") },
-        { id: "story", el: document.getElementById("story") },
-        { id: "architecture", el: document.getElementById("architecture") },
-        { id: "residences", el: document.getElementById("residences") },
-        { id: "amenities", el: document.getElementById("amenities") },
-        { id: "location", el: document.getElementById("location") },
-        { id: "inquire", el: document.getElementById("inquire") },
-      ];
-
-      const scrollPos = window.scrollY + window.innerHeight * 0.35;
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const sec = sections[i];
-        if (sec.el && sec.el.offsetTop <= scrollPos) {
-          setActiveSection(sec.id);
-          break;
-        }
-      }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
     };
-
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Prevent background scroll when menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
   const navLinks = [
-    { label: "Overview", href: "#journey", id: "overview" },
-    { label: "Architecture", href: "#architecture", id: "architecture" },
-    { label: "Residences", href: "#residences", id: "residences" },
-    { label: "Amenities", href: "#amenities", id: "amenities" },
-    { label: "Location", href: "#location", id: "location" },
+    { number: "01", label: "Home", href: "/#hero" },
+    { number: "02", label: "About Us", href: "/#about" },
+    { number: "03", label: "Featured Properties", href: "/#properties" },
+    { number: "04", label: "Our Services", href: "/#services" },
+    { number: "05", label: "Why Choose Us", href: "/#why-choose-us" },
+    { number: "06", label: "Client Testimonials", href: "/#testimonials" },
+    { number: "07", label: "Contact & Desk", href: "/#contact" },
+    { number: "08", label: "All Portfolio Residences", href: "/properties" },
   ];
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    e.preventDefault();
-    setMobileMenuOpen(false);
-    const target = document.querySelector(href);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth" });
+  const handleNavClick = (href: string) => {
+    setMenuOpen(false);
+    if (href.startsWith("/#")) {
+      const id = href.replace("/#", "");
+      if (scrollTo) {
+        scrollTo(`#${id}`, { offset: -60, duration: 1.2 });
+      } else {
+        const element = document.getElementById(id);
+        element?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
+  const handleScheduleClick = () => {
+    setMenuOpen(false);
+    if (onOpenBooking) {
+      onOpenBooking();
+    } else if (scrollTo) {
+      scrollTo("#schedule-meeting", { offset: -60, duration: 1.2 });
+    } else {
+      const scheduleEl = document.getElementById("schedule-meeting");
+      scheduleEl?.scrollIntoView({ behavior: "smooth" });
     }
   };
 
   return (
     <>
-      {/* Top Subtle Spring Scroll Progress Bar */}
-      <motion.div
-        style={{ scaleX }}
-        className="fixed top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#C6A76B] via-[#F5F0E8] to-[#C6A76B] origin-left z-[60] pointer-events-none"
-      />
-
-      <motion.header
-        initial={{ y: -40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? "bg-[#050505]/85 backdrop-blur-xl border-b border-white/10 py-3.5 shadow-2xl shadow-black/80"
-            : "bg-gradient-to-b from-black/85 via-black/25 to-transparent py-5"
-        }`}
-      >
+      {/* MINIMALIST LUXURY HEADER BAR: Simple Logo + Three-line Menu Button ONLY */}
+      <header className="sticky top-0 left-0 right-0 z-50 bg-[#18110B]/95 backdrop-blur-md border-b border-[#C89D5C]/25 shadow-xl shadow-black/30 transition-all duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            {/* Left: Project Identity */}
-            <a
-              href="#journey"
-              onClick={(e) => handleNavClick(e, "#journey")}
-              className="group flex flex-col items-start focus:outline-none cursor-pointer"
+          <div className="flex items-center justify-between h-20">
+            {/* Simple Elegant Brand Logo */}
+            <Link
+              href="/"
+              className="group flex flex-col items-start focus:outline-none"
             >
-              <div className="flex items-center gap-2">
-                <span className="font-serif text-xl sm:text-2xl font-light tracking-[0.22em] text-white transition-colors duration-300 group-hover:text-[#C6A76B]">
-                  THE LUMIÈRE
-                </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#C6A76B]" />
-              </div>
-              <span className="text-[9px] uppercase tracking-[0.35em] text-[#F5F0E8]/50 font-mono -mt-0.5">
-                Private Residences &amp; Penthouses
+              <span className="font-serif text-2xl sm:text-3xl font-light tracking-[0.2em] text-[#FAF7F2] transition-colors duration-300 group-hover:text-[#DFBD85]">
+                AURELIA <span className="text-[#C89D5C] font-normal">&amp;</span> CO.
               </span>
-            </a>
+              <span className="text-[9px] uppercase tracking-[0.38em] text-[#C89D5C] font-mono -mt-1 font-semibold">
+                Luxury Real Estate
+              </span>
+            </Link>
 
-            {/* Center: Apple-style Pill Navigation with Framer Motion Layout Animation */}
-            <nav className="hidden md:flex items-center space-x-1 border border-white/10 rounded-full p-1 bg-black/40 backdrop-blur-md relative">
-              {navLinks.map((link) => {
-                const isActive = activeSection === link.id;
-                return (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    onClick={(e) => handleNavClick(e, link.href)}
-                    className={`relative px-4 py-1 text-xs uppercase tracking-widest transition-colors duration-300 rounded-full cursor-pointer z-10 ${
-                      isActive
-                        ? "text-[#C6A76B] font-semibold"
-                        : "text-white/70 hover:text-white"
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-nav-indicator"
-                        className="absolute inset-0 bg-white/10 rounded-full border border-[#C6A76B]/30"
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10">{link.label}</span>
-                  </a>
-                );
-              })}
-            </nav>
-
-            {/* Right: Book a Private Visit CTA & Animate UI Tooltip */}
+            {/* Right Side: Three-line Button ("three line when click on that then navbar comes") */}
             <div className="flex items-center gap-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href="https://wa.me/442079460912?text=Hello%2C%20I%20would%20like%20to%20inquire%20about%20The%20Lumi%C3%A8re%20private%20residences."
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hidden xl:flex items-center gap-2 text-xs uppercase tracking-wider text-white/60 hover:text-[#C6A76B] transition-colors px-3 py-1.5 rounded-full border border-white/5 hover:border-[#C6A76B]/30 bg-white/[0.02]"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Private Desk</span>
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent className="bg-[#0e0e14] border-[#C6A76B]/40 text-white text-xs max-w-xs p-3 shadow-xl">
-                  <div className="flex items-center gap-1.5 text-[#C6A76B] font-mono text-[10px] uppercase tracking-wider mb-1">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Direct Concierge Portal</span>
-                  </div>
-                  <p className="text-[11px] text-white/80 leading-snug">
-                    Encrypted priority line to our senior residential director. Typical response under 5 minutes.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Animate UI Ripple Button */}
-              <RippleButton
-                onClick={onOpenBooking}
-                hoverScale={1.03}
-                tapScale={0.97}
-                className="group relative inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#C6A76B] hover:bg-[#d8be85] transition-colors duration-300 shadow-lg shadow-[#C6A76B]/20 cursor-pointer overflow-hidden"
+              <button
+                type="button"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="group flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#231811] hover:bg-[#2D1A0B] border border-[#C89D5C]/35 hover:border-[#DFBD85] text-[#FAF7F2] transition-all duration-300 cursor-pointer shadow-md shadow-black/40 hover:scale-[1.03]"
+                aria-label="Toggle Navigation Menu"
               >
-                <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
-                <span className="relative z-10 flex items-center gap-2">
-                  <span>Book a Private Visit</span>
-                  <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+                <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#DFBD85] font-semibold hidden sm:inline">
+                  {menuOpen ? "Close" : "Menu"}
                 </span>
-              </RippleButton>
 
-              {/* Animate UI Animated Sheet Mobile Navigation */}
-              <div className="md:hidden">
-                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                  <SheetTrigger asChild>
-                    <button
-                      type="button"
-                      className="p-2 text-white/80 hover:text-white rounded-lg hover:bg-white/5 focus:outline-none cursor-pointer"
-                      aria-label="Toggle Navigation Menu"
-                    >
-                      <Menu className="w-6 h-6" />
-                    </button>
-                  </SheetTrigger>
-                  <SheetContent
-                    side="right"
-                    className="w-full sm:max-w-md bg-[#070709] border-white/10 p-6 flex flex-col justify-between text-white"
-                  >
-                    <div>
-                      <SheetHeader className="p-0 mb-8 text-left">
-                        <SheetTitle className="font-serif text-2xl tracking-[0.15em] text-[#C6A76B] uppercase font-light">
-                          THE LUMIÈRE
-                        </SheetTitle>
-                        <span className="text-[10px] font-mono tracking-[0.25em] text-white/40 uppercase">
-                          Private Residences &amp; Penthouses
-                        </span>
-                      </SheetHeader>
-
-                      <div className="flex flex-col space-y-4">
-                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-[#C6A76B]">
-                          Explore Architecture
-                        </span>
-                        {navLinks.map((link) => (
-                          <a
-                            key={link.label}
-                            href={link.href}
-                            onClick={(e) => handleNavClick(e, link.href)}
-                            className="text-2xl font-serif text-white hover:text-[#C6A76B] transition-colors py-2.5 border-b border-white/5"
-                          >
-                            {link.label}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 pt-6 border-t border-white/10">
-                      <RippleButton
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          onOpenBooking();
-                        }}
-                        className="w-full py-3.5 rounded-full text-center text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black shadow-xl cursor-pointer"
-                      >
-                        <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
-                        <span className="relative z-10">Book a Private Visit</span>
-                      </RippleButton>
-
-                      <div className="flex items-center justify-between text-xs font-mono text-white/40 pt-2">
-                        <span>THE LUMIÈRE TOWER</span>
-                        <span className="text-[#C6A76B]">68 FLOORS</span>
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
+                {/* Animated Three Lines Icon */}
+                <div className="w-5 h-4 relative flex flex-col justify-between items-end">
+                  <span
+                    className={`h-[1.5px] bg-[#DFBD85] transition-all duration-300 rounded-full ${
+                      menuOpen ? "w-5 rotate-45 translate-y-[7.5px]" : "w-5"
+                    }`}
+                  />
+                  <span
+                    className={`h-[1.5px] bg-[#DFBD85] transition-all duration-300 rounded-full ${
+                      menuOpen ? "opacity-0" : "w-3.5"
+                    }`}
+                  />
+                  <span
+                    className={`h-[1.5px] bg-[#DFBD85] transition-all duration-300 rounded-full ${
+                      menuOpen ? "w-5 -rotate-45 -translate-y-[7px]" : "w-4"
+                    }`}
+                  />
+                </div>
+              </button>
             </div>
           </div>
         </div>
-      </motion.header>
+      </header>
+
+      {/* FULLSCREEN / SLIDE-OVER NAVIGATION MODAL */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex justify-end"
+          >
+            {/* Click backdrop to close */}
+            <div
+              className="absolute inset-0"
+              onClick={() => setMenuOpen(false)}
+            />
+
+            {/* Slide-over Drawer */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="relative z-10 w-full max-w-xl h-full bg-[#18110B] border-l border-[#C89D5C]/30 shadow-2xl flex flex-col justify-between p-6 sm:p-10 overflow-y-auto"
+            >
+              {/* Drawer Top Bar */}
+              <div className="flex items-center justify-between pb-6 border-b border-[#C89D5C]/20">
+                <div className="flex flex-col">
+                  <span className="font-serif text-xl text-[#FAF7F2] font-light tracking-widest">
+                    AURELIA <span className="text-[#C89D5C]">&amp;</span> CO.
+                  </span>
+                  <span className="text-[9px] uppercase tracking-[0.3em] text-[#C89D5C] font-mono font-semibold">
+                    Global Sanctuary Index
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(false)}
+                  className="p-2.5 rounded-full bg-[#231811] hover:bg-[#2D1A0B] border border-[#C89D5C]/30 text-[#DFBD85] hover:text-white transition-colors cursor-pointer"
+                  aria-label="Close menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Navigation Links List */}
+              <nav className="py-8 space-y-2">
+                {navLinks.map((link, idx) => (
+                  <motion.div
+                    key={link.label}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 * idx, duration: 0.35 }}
+                  >
+                    <a
+                      href={link.href}
+                      onClick={(e) => {
+                        if (link.href.startsWith("/#") && window.location.pathname === "/") {
+                          e.preventDefault();
+                          handleNavClick(link.href);
+                        } else {
+                          setMenuOpen(false);
+                        }
+                      }}
+                      className="group flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 transition-all duration-200 cursor-pointer"
+                    >
+                      <div className="flex items-baseline gap-4">
+                        <span className="text-[11px] font-mono text-[#C89D5C] font-semibold">
+                          {link.number}
+                        </span>
+                        <span className="font-serif text-2xl sm:text-3xl text-[#FAF7F2] group-hover:text-[#DFBD85] font-light tracking-wide transition-colors">
+                          {link.label}
+                        </span>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-[#C89D5C] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                    </a>
+                  </motion.div>
+                ))}
+              </nav>
+
+              {/* Bottom Concierge & Actions */}
+              <div className="pt-6 border-t border-[#C89D5C]/20 space-y-4">
+                {/* Schedule Consultation CTA */}
+                <button
+                  type="button"
+                  onClick={handleScheduleClick}
+                  className="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold text-[#18110B] bg-gradient-to-r from-[#C89D5C] via-[#DFBD85] to-[#C89D5C] hover:brightness-110 shadow-lg shadow-[#C89D5C]/20 transition-all cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Schedule Private Consultation</span>
+                </button>
+
+                {/* Direct Telephone & WhatsApp Desk */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <a
+                    href="tel:+18008924400"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#231811] border border-[#C89D5C]/30 text-xs text-[#FAF7F2] hover:text-[#DFBD85] transition-colors font-mono"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-[#C89D5C]" />
+                    <span>+1 (800) 892-4400</span>
+                  </a>
+
+                  <a
+                    href="https://wa.me/13108924400?text=Hello%2C%20I%20would%20like%20to%20inquire%20about%20Aurelia%20private%20estates."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#231811] border border-[#C89D5C]/30 text-xs text-[#FAF7F2] hover:text-[#DFBD85] transition-colors font-mono"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>WhatsApp Desk</span>
+                  </a>
+                </div>
+
+                {/* Global Gateway Cities */}
+                <div className="text-center pt-2">
+                  <p className="text-[10px] uppercase font-mono tracking-widest text-[#D8C3AC]/70">
+                    London • New York • Beverly Hills • Zurich • Lake Como • Dubai
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
