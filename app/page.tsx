@@ -9,6 +9,7 @@ import { TestimonialsSection } from "@/components/sections/TestimonialsSection";
 import { AppointmentBooking } from "@/components/sections/AppointmentBooking";
 import { Footer } from "@/components/Footer";
 import { ConsultationModal } from "@/components/forms/ConsultationModal";
+import { SiteLoader } from "@/components/SiteLoader";
 
 export default function HomePage() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -23,6 +24,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#1E1700] text-[#F4F3EA] flex flex-col selection:bg-[#BCB893]/30 selection:text-[#F4F3EA]">
+      {/* Branded first-load screen: holds until the walkthrough frames are ready */}
+      <SiteLoader />
+
       {/* Floating Menu Icon Over Gemini Watermark */}
       <Navbar onOpenBooking={handleOpenBooking} />
 

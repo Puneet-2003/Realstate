@@ -37,23 +37,31 @@ import { gsap } from "gsap";
 const TOTAL_FRAMES = 717;
 // Bump after regenerating tiers with `node scripts/optimize-frames.mjs`.
 const CACHE_VERSION = "tiers_v1";
-const MAX_CONCURRENT_FETCHES = 6;
+const MAX_CONCURRENT_FETCHES = 8;
 // The tiny "lo" keyframes get their own lane so they are never stuck behind
 // full-size downloads on a cold (first-visit) cache.
-const MAX_CONCURRENT_KF_FETCHES = 4;
+const MAX_CONCURRENT_KF_FETCHES = 6;
 // Use the 1920px tier only when the canvas actually needs more than ~1280px.
 const HD_TIER_ABOVE_SCALE = 0.68;
-// Below this cover scale, decode pre-shrunk bitmaps to save memory.
+// Decode pre-shrunk bitmaps when the canvas is far smaller than the source.
 const RESIZE_DECODE_BELOW_SCALE = 0.6;
+// Pixel tiers of the re-encoded frames (see scripts/optimize-frames.mjs).
+const TIER_W: Record<FrameTier, number> = { lo: 640, md: 1280, hd: 1920 };
 // ---- Feel tuning ----
 // Scroll distance the 717 frames are spread over. Taller = slower animation
 // per wheel step / swipe.
 const HERO_SCROLL_HEIGHT = "900vh";
 // Glide time constant: how long the image takes to catch up with the scroll.
-// Higher = slower, softer motion (~3x this value to fully settle).
-const FRAME_GLIDE_MS = 260;
+// Kept short so frames stay locked to the user's own scroll speed (Lenis
+// already smooths wheel input; touch scrolling has native momentum).
+const FRAME_GLIDE_MS_WHEEL = 70;
+const FRAME_GLIDE_MS_TOUCH = 45;
 // After this long without scroll input, settle onto the nearest whole frame.
-const SETTLE_IDLE_MS = 120;
+const SETTLE_IDLE_MS = 140;
+// ---- First-load readiness (drives the branded loading screen) ----
+// Full-resolution frames from the start of the walkthrough that must be
+// downloaded before the site is revealed, so the first scroll is sharp.
+const READY_FULL_FRAMES = 48;
 
 // Typical decode latency expressed in display ticks, used to lead decodes.
 const DECODE_LEAD_TICKS = 4;
@@ -91,27 +99,50 @@ const releaseBitmap = (b: FrameBitmap | null) => {
   if (b && "close" in b) b.close();
 };
 
+/** A region of the full frame, as fractions (0–1) of its width/height. */
+interface Region {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+const FULL_REGION: Region = { x: 0, y: 0, w: 1, h: 1 };
+/** Which part of the full frame each decoded bitmap holds. */
+const regionOf = new WeakMap<object, Region>();
+const getRegion = (b: FrameBitmap) => regionOf.get(b) ?? FULL_REGION;
+
 /**
- * Off-main-thread decode. Native-size decode is ~3x faster than a resampled
- * one (the GPU scales for free in drawImage), so resizing is only used when
- * the canvas is far smaller than the source and memory savings matter.
+ * Off-main-thread decode of only the visible (cover-cropped) part of a frame.
+ * On a portrait phone that is ~25% of the frame, so 4x more frames fit in the
+ * same memory and no pixels are wasted. Native-size decode is ~3x faster than
+ * a resampled one, so resizing is only used when the canvas is far smaller.
  */
 async function decodeBlob(
   blob: Blob,
-  width: number,
-  height: number,
+  srcW: number,
+  srcH: number,
+  crop: Region,
+  outW: number,
+  outH: number,
   resize: boolean
 ): Promise<FrameBitmap> {
   if (typeof createImageBitmap === "function") {
-    if (!resize) return createImageBitmap(blob);
+    const full = crop.w >= 0.999 && crop.h >= 0.999;
+    const sx = full ? 0 : Math.max(0, Math.floor(crop.x * srcW));
+    const sy = full ? 0 : Math.max(0, Math.floor(crop.y * srcH));
+    const sw = full ? srcW : Math.min(srcW - sx, Math.ceil(crop.w * srcW));
+    const sh = full ? srcH : Math.min(srcH - sy, Math.ceil(crop.h * srcH));
+    const opts: ImageBitmapOptions | undefined = resize
+      ? { resizeWidth: outW, resizeHeight: outH, resizeQuality: "medium" }
+      : undefined;
     try {
-      return await createImageBitmap(blob, {
-        resizeWidth: width,
-        resizeHeight: height,
-        resizeQuality: "medium",
-      });
+      const bmp = full
+        ? await createImageBitmap(blob, opts)
+        : await createImageBitmap(blob, sx, sy, sw, sh, opts);
+      regionOf.set(bmp, full ? FULL_REGION : { x: sx / srcW, y: sy / srcH, w: sw / srcW, h: sh / srcH });
+      return bmp;
     } catch {
-      // Older engines without resize options
+      // Older engines without crop/resize options: plain full decode.
       return await createImageBitmap(blob);
     }
   }
@@ -186,7 +217,9 @@ const HERO_CHAPTERS: HeroChapter[] = [
     cta: "Schedule a Private Viewing",
   },
 ];
-const OVERLAY_FADE = 0.045;
+// Chapters are 0.06 apart; a fade under half of that means one chapter has
+// fully left before the next starts (no two headlines overlapping).
+const OVERLAY_FADE = 0.028;
 const OVERLAY_DRIFT_PX = 28;
 
 export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
@@ -216,20 +249,27 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const bitmaps: (FrameBitmap | null)[] = new Array(TOTAL_FRAMES).fill(null);
     const bitmapGen = new Int32Array(TOTAL_FRAMES).fill(-1); // decode-size generation
     const decoding = new Uint8Array(TOTAL_FRAMES);
+    const blobW = new Uint16Array(TOTAL_FRAMES); // pixel width of each stored blob
     const decodedIndices = new Set<number>();
     let activeFetches = 0;
     let settledFetches = 0;
     let activeDecodes = 0;
 
-    // Resident low-res keyframes (every KF_STRIDE-th frame, 0.3–0.9 MB each):
-    // a never-evicted fallback so very fast flicks never freeze the image.
-    const KF_STRIDE = isTouch ? 6 : 4;
-    const KF_W = isTouch ? 384 : 640;
-    const KF_H = Math.round((KF_W * NATIVE_H) / NATIVE_W);
+    // Resident low-res keyframes (every KF_STRIDE-th frame), decoded from the
+    // 640px "lo" tier at full sharpness and cropped to the visible region: a
+    // never-evicted fallback so very fast flicks never freeze the image.
+    const KF_STRIDE = 4;
+    // Max decoded pixels per keyframe (bounds memory on landscape screens).
+    const KF_MAX_PX = isTouch ? 140_000 : 230_400;
     const keyframes: (FrameBitmap | null)[] = new Array(TOTAL_FRAMES).fill(null);
+    const kfBlobs: (Blob | null)[] = new Array(TOTAL_FRAMES).fill(null);
     const kfStatus = new Uint8Array(TOTAL_FRAMES);
-    let activeKfFetches = 0;
+    const kfGen = new Int32Array(TOTAL_FRAMES).fill(-1); // crop generation decoded at
+    const kfBusy = new Uint8Array(TOTAL_FRAMES);
+    let activeKfJobs = 0;
     let settledKfFetches = 0;
+    let failedKeyframes = 0;
+    let currentKeyframes = 0; // keyframes decoded for the current crop
     const totalKeyframes = Math.ceil(TOTAL_FRAMES / KF_STRIDE);
 
     // Full-size tier: chosen once at boot from the canvas size and connection.
@@ -241,10 +281,10 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
 
     // ---- Canvas & decode sizing ----------------------------------------
     let ctx: CanvasRenderingContext2D | null = null;
-    let decodeW = NATIVE_W;
-    let decodeH = NATIVE_H;
-    let decodeResize = false;
-    let generation = 0;
+    // Visible (cover-cropped) part of the frame for the current canvas shape.
+    let crop: Region = FULL_REGION;
+    let cropGen = 0; // bumps when the crop changes (keyframes re-decode lazily)
+    let generation = 0; // bumps when crop or canvas size changes (full frames)
     let windowAhead = 30;
     let windowBehind = 12;
 
@@ -256,6 +296,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let targetFrame = 0; // float, frame the scroll position asks for
     let lastScrollChange = 0;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const glideMs = isTouch ? FRAME_GLIDE_MS_TOUCH : FRAME_GLIDE_MS_WHEEL;
     let center = 0; // integer frame the window is centred on
     let direction = 1;
     let velocity = 0; // smoothed |frames per tick|
@@ -263,18 +304,41 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let needsDraw = true;
     let shownExact = false; // is the exact requested frame (and blend) on screen?
 
+    /** Output size for decoding the visible part of a `srcW`-wide blob. */
+    let outW = 1;
+    let outH = 1;
+    let outResize = false;
+    const planDecode = (srcW: number) => {
+      const srcH = Math.round((srcW * NATIVE_H) / NATIVE_W);
+      const cropPxW = crop.w * srcW;
+      const cropPxH = crop.h * srcH;
+      outResize = canvas.width < cropPxW * RESIZE_DECODE_BELOW_SCALE;
+      outW = outResize ? canvas.width : Math.ceil(cropPxW);
+      outH = outResize ? canvas.height : Math.ceil(cropPxH);
+    };
+
+    let lastCanvasW = 0;
+    let lastCanvasH = 0;
     const computeDecodeSize = () => {
-      const coverScale = Math.max(canvas.width / nativeW, canvas.height / nativeH);
-      const resize = coverScale < RESIZE_DECODE_BELOW_SCALE;
-      const w = resize ? Math.max(1, Math.ceil(nativeW * coverScale)) : nativeW;
-      const h = resize ? Math.max(1, Math.ceil(nativeH * coverScale)) : nativeH;
-      if (w !== decodeW || h !== decodeH) {
-        decodeW = w;
-        decodeH = h;
-        decodeResize = resize;
+      // Cover crop: the part of the 16:9 frame that is actually on screen.
+      const aspect = canvas.width / canvas.height;
+      const nativeAspect = NATIVE_W / NATIVE_H;
+      const next: Region =
+        aspect < nativeAspect
+          ? { x: (1 - aspect / nativeAspect) / 2, y: 0, w: aspect / nativeAspect, h: 1 }
+          : { x: 0, y: (1 - nativeAspect / aspect) / 2, w: 1, h: nativeAspect / aspect };
+      if (Math.abs(next.w - crop.w) > 0.002 || Math.abs(next.h - crop.h) > 0.002) {
+        crop = next;
+        cropGen++;
+        currentKeyframes = 0;
         generation++; // existing bitmaps stay drawable but get re-decoded lazily
+      } else if (canvas.width !== lastCanvasW || canvas.height !== lastCanvasH) {
+        generation++;
       }
-      const perFrame = decodeW * decodeH * 4;
+      lastCanvasW = canvas.width;
+      lastCanvasH = canvas.height;
+      planDecode(TIER_W[tier]);
+      const perFrame = outW * outH * 4;
       const maxDecoded = Math.max(12, Math.min(96, Math.floor(decodedBudgetBytes / perFrame)));
       windowAhead = Math.round(maxDecoded * 0.7);
       windowBehind = maxDecoded - windowAhead - 1;
@@ -300,7 +364,10 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const measure = () => {
       const rect = container.getBoundingClientRect();
       containerTop = rect.top + window.scrollY;
-      scrollable = Math.max(1, container.offsetHeight - window.innerHeight);
+      // The sticky viewport is sized in svh, which (unlike innerHeight) does
+      // not change when the mobile address bar shows/hides, so the frame for a
+      // given scroll position never jumps mid-scroll.
+      scrollable = Math.max(1, container.offsetHeight - (viewport.offsetHeight || window.innerHeight));
       lastScrollY = -1; // force progress recompute
     };
 
@@ -362,6 +429,44 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       return full >= 0 ? bitmaps[full] : null;
     };
 
+    /** Draws the visible (cover-cropped) part of a bitmap over the full canvas. */
+    const blit = (c: CanvasRenderingContext2D, bmp: FrameBitmap) => {
+      const r = getRegion(bmp);
+      const bw = bitmapW(bmp);
+      const bh = bitmapH(bmp);
+      c.drawImage(
+        bmp,
+        ((crop.x - r.x) / r.w) * bw,
+        ((crop.y - r.y) / r.h) * bh,
+        (crop.w / r.w) * bw,
+        (crop.h / r.h) * bh,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+    };
+
+    /** Masks the bottom-right watermark by cloning a clean patch of the same frame. */
+    const maskWatermark = (c: CanvasRenderingContext2D, bmp: FrameBitmap) => {
+      const r = getRegion(bmp);
+      const bw = bitmapW(bmp);
+      const bh = bitmapH(bmp);
+      const pw = 72 / nativeW;
+      const ph = 65 / nativeH;
+      const sx = ((1448 / nativeW - r.x) / r.w) * bw;
+      const sy = ((875 / nativeH - r.y) / r.h) * bh;
+      const sw = (pw / r.w) * bw;
+      const sh = (ph / r.h) * bh;
+      if (sx < 0 || sy < 0 || sx + sw > bw || sy + sh > bh) return; // patch not in this bitmap
+      const dx = ((1448 / nativeW - crop.x) / crop.w) * canvas.width;
+      const dy = ((942 / nativeH - crop.y) / crop.h) * canvas.height;
+      const dw = Math.ceil((pw / crop.w) * canvas.width);
+      const dh = Math.ceil((ph / crop.h) * canvas.height);
+      if (dx >= canvas.width || dy >= canvas.height || dx + dw <= 0 || dy + dh <= 0) return; // off screen
+      c.drawImage(bmp, sx, sy, sw, sh, dx, dy, dw, dh);
+    };
+
     const draw = (frameFloat: number) => {
       const c = getCtx();
       if (!c) return;
@@ -383,39 +488,16 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       if (!base) return; // nothing ready yet; keep last painted image
       if (resolved !== baseIdx || resolvedIsKeyframe) blendIdx = -1;
 
-      const cw = canvas.width;
-      const ch = canvas.height;
-      const scale = Math.max(cw / nativeW, ch / nativeH);
-      const nw = Math.ceil(nativeW * scale);
-      const nh = Math.ceil(nativeH * scale);
-      const nx = Math.round((cw - nw) / 2);
-      const ny = Math.round((ch - nh) / 2);
-
       c.globalAlpha = 1;
-      c.drawImage(base, nx, ny, nw, nh);
+      blit(c, base);
 
       if (blendIdx >= 0) {
         c.globalAlpha = fraction;
-        c.drawImage(bitmaps[blendIdx]!, nx, ny, nw, nh);
+        blit(c, bitmaps[blendIdx]!);
         c.globalAlpha = 1;
       }
 
-      // Seamlessly mask bottom-right watermark by cloning a clean patch of the base frame.
-      if (nativeW >= 1900 && nativeH >= 1000) {
-        const s = bitmapW(base) / nativeW;
-        const sy = bitmapH(base) / nativeH;
-        c.drawImage(
-          base,
-          1448 * s,
-          875 * sy,
-          72 * s,
-          65 * sy,
-          nx + (1448 / nativeW) * nw,
-          ny + (942 / nativeH) * nh,
-          Math.ceil((72 / nativeW) * nw),
-          Math.ceil((65 / nativeH) * nh)
-        );
-      }
+      maskWatermark(c, base);
       const wantsBlend = fraction > 0.03 && fraction <= 0.97 && ceilIdx !== floorIdx;
       shownExact = resolved === baseIdx && !resolvedIsKeyframe && (!wantsBlend || blendIdx >= 0);
     };
@@ -444,7 +526,9 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       decoding[idx] = 1;
       activeDecodes++;
       const gen = generation;
-      decodeBlob(blob, decodeW, decodeH, decodeResize)
+      const srcW = blobW[idx] || NATIVE_W;
+      planDecode(srcW);
+      decodeBlob(blob, srcW, Math.round((srcW * NATIVE_H) / NATIVE_W), crop, outW, outH, outResize)
         .then((bmp) => {
           if (disposed) {
             releaseBitmap(bmp);
@@ -522,13 +606,19 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const fetchFrame = (idx: number) => {
       status[idx] = ST_FETCHING;
       activeFetches++;
+      let w = TIER_W[tier];
       fetchBlob(framePath(idx, tier))
         .catch(() => null)
-        .then((blob) => blob ?? fetchBlob(fallbackFramePath(idx)).catch(() => null))
+        .then((blob) => {
+          if (blob) return blob;
+          w = NATIVE_W; // original full-size render
+          return fetchBlob(fallbackFramePath(idx)).catch(() => null);
+        })
         .then((blob) => {
           if (disposed) return;
           if (blob) {
             blobs[idx] = blob;
+            blobW[idx] = w;
             status[idx] = ST_FETCHED;
             if (inWindow(idx)) pumpDecodes();
           } else {
@@ -538,7 +628,10 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         .finally(() => {
           activeFetches--;
           settledFetches++;
-          if (!disposed) pumpFetches();
+          if (!disposed) {
+            pumpFetches();
+            reportReadiness();
+          }
         });
     };
 
@@ -569,45 +662,117 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
      * lane, nearest-first. On a cold cache the whole walkthrough becomes
      * scrubbable within a few hundred KB, instead of waiting on full frames.
      */
-    const fetchKeyframe = (idx: number) => {
-      kfStatus[idx] = ST_FETCHING;
-      activeKfFetches++;
-      fetchBlob(framePath(idx, "lo"))
-        .catch(() => null)
-        .then((blob) => (blob ? decodeBlob(blob, KF_W, KF_H, true) : null))
+    /** Decodes a keyframe's visible region from its "lo" blob (re-run on crop change). */
+    const decodeKeyframe = (idx: number) => {
+      const blob = kfBlobs[idx];
+      if (!blob) return;
+      kfBusy[idx] = 1;
+      activeKfJobs++;
+      const g = cropGen;
+      const srcW = TIER_W.lo;
+      const srcH = Math.round((srcW * NATIVE_H) / NATIVE_W);
+      const px = crop.w * srcW * crop.h * srcH;
+      const s = px > KF_MAX_PX ? Math.sqrt(KF_MAX_PX / px) : 1;
+      decodeBlob(
+        blob,
+        srcW,
+        srcH,
+        crop,
+        Math.max(1, Math.round(crop.w * srcW * s)),
+        Math.max(1, Math.round(crop.h * srcH * s)),
+        s < 1
+      )
         .then((bmp) => {
-          if (!bmp) {
-            kfStatus[idx] = ST_FAILED;
-            return;
-          }
           if (disposed) {
             releaseBitmap(bmp);
             return;
           }
+          releaseBitmap(keyframes[idx]);
           keyframes[idx] = bmp;
-          kfStatus[idx] = ST_FETCHED;
+          kfGen[idx] = g;
+          if (g === cropGen) currentKeyframes++;
           if (!shownExact) needsDraw = true;
         })
         .catch(() => {
-          kfStatus[idx] = ST_FAILED;
+          kfGen[idx] = g; // undecodable: don't retry for this crop
         })
         .finally(() => {
-          activeKfFetches--;
-          settledKfFetches++;
-          if (!disposed) pumpKeyframes();
+          kfBusy[idx] = 0;
+          activeKfJobs--;
+          if (!disposed) {
+            pumpKeyframes();
+            reportReadiness();
+          }
         });
     };
 
+    const fetchKeyframe = (idx: number) => {
+      kfStatus[idx] = ST_FETCHING;
+      activeKfJobs++;
+      fetchBlob(framePath(idx, "lo"))
+        .catch(() => null)
+        .then((blob) => {
+          if (disposed) return;
+          if (blob) {
+            kfBlobs[idx] = blob;
+            kfStatus[idx] = ST_FETCHED;
+          } else {
+            kfStatus[idx] = ST_FAILED;
+            failedKeyframes++;
+          }
+        })
+        .finally(() => {
+          activeKfJobs--;
+          settledKfFetches++;
+          if (!disposed) {
+            pumpKeyframes();
+            reportReadiness();
+          }
+        });
+    };
+
+    /** Starts a keyframe fetch or (re-)decode if needed; false once the lane is full. */
+    const tryKeyframe = (k: number) => {
+      if (k < 0 || k >= TOTAL_FRAMES) return true;
+      if (kfStatus[k] === ST_IDLE) fetchKeyframe(k);
+      else if (kfStatus[k] === ST_FETCHED && kfGen[k] !== cropGen && !kfBusy[k]) decodeKeyframe(k);
+      return activeKfJobs < MAX_CONCURRENT_KF_FETCHES;
+    };
+
     const pumpKeyframes = () => {
-      if (settledKfFetches >= totalKeyframes) return;
+      if (activeKfJobs >= MAX_CONCURRENT_KF_FETCHES) return;
+      if (settledKfFetches >= totalKeyframes && currentKeyframes + failedKeyframes >= totalKeyframes) return;
       const k0 = center - (center % KF_STRIDE);
-      for (let d = 0; d < TOTAL_FRAMES && activeKfFetches < MAX_CONCURRENT_KF_FETCHES; d += KF_STRIDE) {
-        const a = k0 + direction * d;
-        if (a >= 0 && a < TOTAL_FRAMES && kfStatus[a] === ST_IDLE) fetchKeyframe(a);
-        const b = k0 - direction * d;
-        if (d > 0 && activeKfFetches < MAX_CONCURRENT_KF_FETCHES && b >= 0 && b < TOTAL_FRAMES && kfStatus[b] === ST_IDLE) {
-          fetchKeyframe(b);
-        }
+      for (let d = 0; d < TOTAL_FRAMES; d += KF_STRIDE) {
+        if (!tryKeyframe(k0 + direction * d)) return;
+        if (d > 0 && !tryKeyframe(k0 - direction * d)) return;
+      }
+    };
+
+    // ---- First-load readiness ------------------------------------------
+    // Progress (0–1) is published on window for the branded loading screen:
+    // every keyframe (so any scroll position has a sharp-enough image) plus
+    // the first READY_FULL_FRAMES full-resolution frames, and frame 0 painted.
+    type HeroWindow = Window & { __heroProgress?: number; __heroReady?: boolean };
+    const hw = window as HeroWindow;
+    let readyReported = false;
+    const reportReadiness = () => {
+      if (readyReported) return;
+      const kf = Math.min(1, (currentKeyframes + failedKeyframes) / totalKeyframes);
+      let full = 0;
+      const start = Math.max(0, Math.min(center, TOTAL_FRAMES - READY_FULL_FRAMES));
+      for (let i = start; i < start + READY_FULL_FRAMES; i++) {
+        if (status[i] === ST_FETCHED || status[i] === ST_FAILED) full++;
+      }
+      const fullP = full / READY_FULL_FRAMES;
+      const p = kf * 0.55 + fullP * 0.45;
+      const ready = kf >= 1 && fullP >= 1 && shownExact;
+      if (ready) readyReported = true;
+      const prev = hw.__heroProgress ?? 0;
+      if (ready || p - prev >= 0.01) {
+        hw.__heroProgress = ready ? 1 : Math.max(prev, p);
+        hw.__heroReady = ready;
+        window.dispatchEvent(new CustomEvent("hero:progress", { detail: hw.__heroProgress }));
       }
     };
 
@@ -665,7 +830,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         if (deltaMs === undefined || reducedMotion || Math.abs(diff) < 0.002) {
           currentFrame = targetFrame;
         } else {
-          const k = 1 - Math.exp(-Math.min(deltaMs, 100) / FRAME_GLIDE_MS);
+          const k = 1 - Math.exp(-Math.min(deltaMs, 100) / glideMs);
           currentFrame += diff * k;
         }
         needsDraw = true;
@@ -693,20 +858,28 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       // At rest, make sure the exact full-resolution frame (not a low-res
       // fallback or a neighbour) gets decoded and painted.
       if (!shownExact && currentFrame === targetFrame) pumpDecodes();
+      if (!readyReported && shownExact) reportReadiness();
     };
 
     // ---- Boot -----------------------------------------------------------
+    hw.__heroProgress = 0;
+    hw.__heroReady = false;
     resizeCanvas();
     measure();
 
     // Pick the full-size tier: 1920px only for large canvases on a decent link.
     {
       const conn = (navigator as Navigator & {
-        connection?: { saveData?: boolean; effectiveType?: string };
+        connection?: { saveData?: boolean; effectiveType?: string; downlink?: number };
       }).connection;
-      const slowLink = !!conn && (conn.saveData === true || /(^|-)(2g|3g)$/.test(conn.effectiveType ?? ""));
+      const slowLink =
+        !!conn &&
+        (conn.saveData === true ||
+          /(^|-)(2g|3g)$/.test(conn.effectiveType ?? "") ||
+          (typeof conn.downlink === "number" && conn.downlink > 0 && conn.downlink < 5));
       const coverScale = Math.max(canvas.width / NATIVE_W, canvas.height / NATIVE_H);
       tier = !slowLink && coverScale > HD_TIER_ABOVE_SCALE ? "hd" : "md";
+      computeDecodeSize(); // window size depends on the tier's pixel size
     }
 
     tick(); // establish initial centre from current scroll position
@@ -724,6 +897,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         resizeCanvas();
         evictOutsideWindow();
         pumpDecodes();
+        pumpKeyframes(); // re-decode keyframes if the visible crop changed
       }, 120);
     };
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
@@ -743,6 +917,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         releaseBitmap(keyframes[i]);
         bitmaps[i] = null;
         keyframes[i] = null;
+        kfBlobs[i] = null;
         blobs[i] = null;
       }
       decodedIndices.clear();
