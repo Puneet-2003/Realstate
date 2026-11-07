@@ -88,13 +88,13 @@ export function BuildingScene({
       {/* Ground Landscape Plinth */}
       <mesh position={[0, -0.4, -4]} receiveShadow>
         <boxGeometry args={[44, 0.6, 56]} />
-        <meshStandardMaterial color="#111116" roughness={0.9} metalness={0.1} />
+        <meshStandardMaterial color="#1E1700" roughness={0.9} metalness={0.1} />
       </mesh>
 
       {/* Entrance Front Reflection Pool */}
       <mesh position={[0, -0.06, 9]} receiveShadow>
         <boxGeometry args={[16, 0.2, 10]} />
-        <meshStandardMaterial color="#0a0a0f" roughness={0.4} />
+        <meshStandardMaterial color="#171200" roughness={0.4} />
       </mesh>
       {/* Front Pool Water */}
       <mesh position={[0, 0.04, 9]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -122,9 +122,9 @@ export function BuildingScene({
           <group key={`light-peg-${i}-${j}`} position={[x, 0.1, z]}>
             <mesh>
               <cylinderGeometry args={[0.06, 0.06, 0.08, 12]} />
-              <meshBasicMaterial color="#dfc293" />
+              <meshBasicMaterial color="#CFCCAE" />
             </mesh>
-            <pointLight color="#dfc293" intensity={0.35} distance={2.5} />
+            <pointLight color="#CFCCAE" intensity={0.35} distance={2.5} />
           </group>
         ))
       )}
@@ -163,7 +163,7 @@ export function BuildingScene({
           <meshBasicMaterial color="#eed8b1" />
         </mesh>
       ))}
-      <pointLight position={[0, 5.8, -4]} color="#ffeedd" intensity={1.8 + interiorGlow * 1.5} distance={16} />
+      <pointLight position={[0, 5.8, -4]} color="#F1EFE3" intensity={1.8 + interiorGlow * 1.5} distance={16} />
 
       {/* Massive Exterior Portal Columns (Roman Travertine) */}
       <mesh position={[-4.5, 2.8, 4]} castShadow receiveShadow>
@@ -228,7 +228,7 @@ export function BuildingScene({
           {/* Bronze Architectural Handle */}
           <mesh position={[1.1, 0, 0.1]}>
             <cylinderGeometry args={[0.025, 0.025, 1.6, 12]} />
-            <meshStandardMaterial color="#c5a880" metalness={0.9} roughness={0.2} />
+            <meshStandardMaterial color="#BCB893" metalness={0.9} roughness={0.2} />
           </mesh>
         </group>
 
@@ -254,7 +254,7 @@ export function BuildingScene({
           {/* Bronze Architectural Handle */}
           <mesh position={[-1.1, 0, 0.1]}>
             <cylinderGeometry args={[0.025, 0.025, 1.6, 12]} />
-            <meshStandardMaterial color="#c5a880" metalness={0.9} roughness={0.2} />
+            <meshStandardMaterial color="#BCB893" metalness={0.9} roughness={0.2} />
           </mesh>
         </group>
       </group>
@@ -268,7 +268,7 @@ export function BuildingScene({
       {/* Console Bronze Sculpture */}
       <mesh position={[0, 1.3, 0.5]} castShadow>
         <torusKnotGeometry args={[0.26, 0.08, 64, 16]} />
-        <meshStandardMaterial color="#d4af37" metalness={0.9} roughness={0.25} />
+        <meshStandardMaterial color="#BCB893" metalness={0.9} roughness={0.25} />
       </mesh>
       {/* Picture Spotlight */}
       <pointLight position={[0, 3.2, 0.5]} color="#ffecd1" intensity={1.5} distance={5} />
@@ -328,7 +328,7 @@ export function BuildingScene({
       {/* Monumental Monolithic Floating Fireplace (Black Quartzite) */}
       <mesh position={[-4.5, 2.5, -11]} castShadow receiveShadow>
         <boxGeometry args={[2.2, 4.8, 4.5]} />
-        <meshStandardMaterial color="#0a0a0c" roughness={0.8} />
+        <meshStandardMaterial color="#171200" roughness={0.8} />
       </mesh>
       {/* Firebox Opening */}
       <mesh position={[-3.38, 1.4, -11]}>
@@ -353,7 +353,7 @@ export function BuildingScene({
       <group position={[1.5, 4.8, -11]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[1.8, 0.04, 16, 64]} />
-          <meshBasicMaterial color="#ffeedd" />
+          <meshBasicMaterial color="#F1EFE3" />
         </mesh>
         <pointLight color="#fff0db" intensity={2.4} distance={9} />
       </group>
@@ -453,7 +453,7 @@ export function BuildingScene({
       <mesh position={[3.0, 4.4, -10]}>
         <boxGeometry args={[0.06, 1.0, 12]} />
         <meshPhysicalMaterial
-          color="#111116"
+          color="#1E1700"
           transmission={0.8}
           roughness={0.1}
           transparent
@@ -503,13 +503,13 @@ export function BuildingScene({
             <mesh onClick={() => onSelectHotspot(spot.id)}>
               <sphereGeometry args={[0.16, 16, 16]} />
               <meshStandardMaterial
-                color={isSelected ? "#d4af37" : "#ffffff"}
-                emissive={isSelected ? "#d4af37" : "#c5a880"}
+                color={isSelected ? "#BCB893" : "#ffffff"}
+                emissive={isSelected ? "#BCB893" : "#BCB893"}
                 emissiveIntensity={isSelected ? 2 : 1}
               />
             </mesh>
             <pointLight
-              color="#dfc293"
+              color="#CFCCAE"
               intensity={isSelected ? 1.5 : 0.6}
               distance={3}
             />

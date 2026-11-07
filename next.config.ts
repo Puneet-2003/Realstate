@@ -25,11 +25,22 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/sequence/:path*",
+        // Frame URLs are versioned (?v=CACHE_VERSION in HeroSection), so they can
+        // be cached forever: repeat visits read them from disk, no revalidation.
+        source: "/frames/:path*",
         headers: [
           {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/sequence/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
           },
         ],
       },

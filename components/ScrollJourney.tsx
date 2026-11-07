@@ -17,13 +17,13 @@ import {
   Pause,
 } from "lucide-react";
 
-const TOTAL_FRAMES = 100;
-const INITIAL_BURST_COUNT = 10;
-const MAX_CONCURRENT_FETCHES = 5;
+const TOTAL_FRAMES: number = 717;
+const INITIAL_BURST_COUNT = 25;
+const MAX_CONCURRENT_FETCHES = 8;
 
 // Memory management budget
-const MAX_DECODED_DESKTOP = 100;
-const MAX_DECODED_MOBILE = 45;
+const MAX_DECODED_DESKTOP = 717;
+const MAX_DECODED_MOBILE = 150;
 
 interface Chapter {
   id: string;
@@ -202,7 +202,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
   // Helper to resolve frame path (prefers modern WebP with MozJPEG fallback)
   const getFramePath = useCallback((index: number, ext: "webp" | "jpg" = "webp") => {
     const pad = String(index + 1).padStart(3, "0");
-    return `/sequence/frame-${pad}.${ext}`;
+    return `/frames/frame-${pad}.${ext}?v=fry_try_dry_1`;
   }, []);
 
   // Hardware-accelerated canvas rendering: instant single-pass draw (zero lag, 120fps lock)
@@ -456,6 +456,11 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     resizeCanvas();
 
     const bootSequence = async () => {
+      if (TOTAL_FRAMES === 0) {
+        setIsInitialReady(true);
+        setInitialLoadingProgress(100);
+        return;
+      }
       // 1. Instantly fetch & paint hero frame 0 onto Canvas A and frame 1 onto Canvas B
       await loadSingleFrame(0);
       if (!isMountedRef.current) return;
@@ -504,7 +509,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
 
       if (preloadIndicatorRef.current) {
         preloadIndicatorRef.current.style.opacity = "1";
-        preloadIndicatorRef.current.title = "All 100 frames cached in memory";
+        preloadIndicatorRef.current.title = `All ${TOTAL_FRAMES} frames cached in memory`;
       }
     };
 
@@ -790,13 +795,13 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
     <div
       ref={containerRef}
       id="journey"
-      className="relative bg-[#050505] text-white w-full"
+      className="relative bg-[#140F00] text-white w-full"
       style={{ height: "480vh" }}
     >
       {/* Sticky Viewport Container: Pure GPU-accelerated pinning for 480vh */}
       <div
         ref={viewportRef}
-        className="sticky top-0 w-full h-screen overflow-hidden bg-[#050505]"
+        className="sticky top-0 w-full h-screen overflow-hidden bg-[#140F00]"
       >
         {/* Continuous Dual-Buffer Hardware-Accelerated Cross-Fader */}
         {/* Base Canvas A: Always solid 100% opaque. ZERO blinking, ZERO background show-through. */}
@@ -819,11 +824,11 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
               initial={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-0 z-50 bg-[#050505] flex flex-col items-center justify-center pointer-events-none p-6"
+              className="absolute inset-0 z-50 bg-[#140F00] flex flex-col items-center justify-center pointer-events-none p-6"
             >
               <div className="flex flex-col items-center text-center max-w-sm">
-                <span className="w-2 h-2 rounded-full bg-[#C6A76B] animate-ping mb-6" />
-                <span className="text-[10px] font-mono tracking-[0.4em] uppercase text-[#C6A76B] mb-2">
+                <span className="w-2 h-2 rounded-full bg-[#BCB893] animate-ping mb-6" />
+                <span className="text-[10px] font-mono tracking-[0.4em] uppercase text-[#BCB893] mb-2">
                   Aurelia &amp; Co.
                 </span>
                 <h1 className="font-serif text-3xl sm:text-4xl text-white font-light tracking-[0.15em] mb-4">
@@ -836,13 +841,13 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 {/* Golden Micro-Progress Bar */}
                 <div className="w-48 h-[2px] bg-white/10 rounded-full overflow-hidden relative">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-[#C6A76B] to-[#F5F0E8]"
+                    className="h-full bg-gradient-to-r from-[#BCB893] to-[#F1EFE3]"
                     initial={{ width: "0%" }}
                     animate={{ width: `${initialLoadingProgress}%` }}
                     transition={{ duration: 0.2 }}
                   />
                 </div>
-                <span className="text-[10px] font-mono tracking-widest text-[#C6A76B] mt-3">
+                <span className="text-[10px] font-mono tracking-widest text-[#BCB893] mt-3">
                   {initialLoadingProgress}%
                 </span>
               </div>
@@ -851,22 +856,22 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         </AnimatePresence>
 
         {/* Cinematic Vignette & Ambient Glow Overlays */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-transparent to-[#050505]/40 z-10" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#050505]/70 via-transparent to-[#050505]/60 z-10" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#140F00]/95 via-transparent to-[#140F00]/40 z-10" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#140F00]/70 via-transparent to-[#140F00]/60 z-10" />
 
         {/* Top Telemetry Bar */}
         <div className="absolute top-20 sm:top-24 left-0 right-0 px-6 sm:px-12 flex items-center justify-between text-xs font-mono uppercase tracking-[0.25em] text-white/60 pointer-events-none z-30">
           <div className="flex items-center gap-3">
             <span
               ref={preloadIndicatorRef}
-              className="w-2 h-2 rounded-full bg-[#C6A76B] transition-opacity duration-500"
+              className="w-2 h-2 rounded-full bg-[#BCB893] transition-opacity duration-500"
               title="Sequence cache status"
             />
-            <span className="text-[#F5F0E8] font-medium tracking-[0.2em]">
+            <span className="text-[#F1EFE3] font-medium tracking-[0.2em]">
               THE LUMIÈRE
             </span>
             <span className="hidden md:inline text-white/30">|</span>
-            <span className="hidden md:inline text-[#C6A76B]">
+            <span className="hidden md:inline text-[#BCB893]">
               {activeChapter.location}
             </span>
           </div>
@@ -878,8 +883,8 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
               onClick={toggleAutoPlay}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all backdrop-blur-md cursor-pointer ${
                 isAutoPlaying
-                  ? "bg-[#C6A76B] text-black border-[#C6A76B] shadow-lg shadow-[#C6A76B]/30 font-semibold"
-                  : "bg-black/50 hover:bg-black/80 border-white/10 hover:border-[#C6A76B]/50 text-white/80 hover:text-white"
+                  ? "bg-[#BCB893] text-black border-[#BCB893] shadow-lg shadow-[#BCB893]/30 font-semibold"
+                  : "bg-black/50 hover:bg-black/80 border-white/10 hover:border-[#BCB893]/50 text-white/80 hover:text-white"
               }`}
               title="Toggle automatic smooth cinematic tour"
             >
@@ -890,7 +895,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 </>
               ) : (
                 <>
-                  <Play className="w-3 h-3 fill-current text-[#C6A76B]" />
+                  <Play className="w-3 h-3 fill-current text-[#BCB893]" />
                   <span className="text-[10px] hidden sm:inline">Auto Tour</span>
                 </>
               )}
@@ -900,13 +905,13 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
             <button
               type="button"
               onClick={toggleAudio}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 hover:border-[#C6A76B]/50 text-white/70 hover:text-white transition-all backdrop-blur-md cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 hover:border-[#BCB893]/50 text-white/70 hover:text-white transition-all backdrop-blur-md cursor-pointer"
               title="Toggle architectural soundscape"
             >
               {isAudioEnabled ? (
                 <>
-                  <Volume2 className="w-3.5 h-3.5 text-[#C6A76B]" />
-                  <span className="text-[10px] text-[#C6A76B] hidden sm:inline">Audio On</span>
+                  <Volume2 className="w-3.5 h-3.5 text-[#BCB893]" />
+                  <span className="text-[10px] text-[#BCB893] hidden sm:inline">Audio On</span>
                 </>
               ) : (
                 <>
@@ -921,7 +926,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
               <span className="text-[10px] text-white/40">FRAME</span>
               <span
                 ref={frameCounterRef}
-                className="text-[10px] text-[#F5F0E8] font-semibold"
+                className="text-[10px] text-[#F1EFE3] font-semibold"
               >
                 001
               </span>
@@ -950,16 +955,16 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
               <button
                 type="button"
                 onClick={() => setActiveHotspot(hotspot)}
-                className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/75 hover:bg-black/95 border border-[#C6A76B]/60 text-white shadow-2xl backdrop-blur-xl cursor-pointer hover:border-[#C6A76B] transition-all hover:scale-105"
+                className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/75 hover:bg-black/95 border border-[#BCB893]/60 text-white shadow-2xl backdrop-blur-xl cursor-pointer hover:border-[#BCB893] transition-all hover:scale-105"
               >
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C6A76B] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C6A76B]" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#BCB893] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#BCB893]" />
                 </span>
-                <span className="text-[11px] font-sans tracking-wider uppercase text-[#F5F0E8] group-hover:text-white">
+                <span className="text-[11px] font-sans tracking-wider uppercase text-[#F1EFE3] group-hover:text-white">
                   {hotspot.label}
                 </span>
-                <Info className="w-3 h-3 text-[#C6A76B] opacity-70 group-hover:opacity-100" />
+                <Info className="w-3 h-3 text-[#BCB893] opacity-70 group-hover:opacity-100" />
               </button>
             </div>
           ))}
@@ -979,7 +984,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="relative max-w-md w-full bg-[#0A0A0C] border border-[#C6A76B]/40 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black text-left"
+                className="relative max-w-md w-full bg-[#171200] border border-[#BCB893]/40 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black text-left"
               >
                 <button
                   type="button"
@@ -990,7 +995,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                   <X className="w-4 h-4" />
                 </button>
 
-                <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.2em] text-[#C6A76B] mb-2">
+                <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.2em] text-[#BCB893] mb-2">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Specification</span>
                 </div>
@@ -1010,7 +1015,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                   <button
                     type="button"
                     onClick={() => setActiveHotspot(null)}
-                    className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest bg-[#C6A76B] hover:bg-[#d8be85] text-black font-semibold transition-all cursor-pointer"
+                    className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest bg-[#BCB893] hover:bg-[#CFCCAE] text-black font-semibold transition-all cursor-pointer"
                   >
                     Dismiss
                   </button>
@@ -1034,16 +1039,16 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
               >
                 {/* Scene Eyebrow */}
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-widest uppercase bg-[#C6A76B]/20 text-[#C6A76B] border border-[#C6A76B]/30">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-widest uppercase bg-[#BCB893]/20 text-[#BCB893] border border-[#BCB893]/30">
                     SCENE {activeChapter.number}
                   </span>
-                  <span className="text-xs uppercase tracking-[0.25em] text-[#F5F0E8]/70 font-mono">
+                  <span className="text-xs uppercase tracking-[0.25em] text-[#F1EFE3]/70 font-mono">
                     {activeChapter.location}
                   </span>
                 </div>
 
                 {/* Editorial Headline */}
-                <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight leading-[1.08] drop-shadow-2xl">
+                <h2 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-white font-light tracking-tight leading-[1.08] drop-shadow-2xl">
                   {activeChapter.title}
                 </h2>
 
@@ -1072,7 +1077,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                       whileTap={{ scale: 0.97 }}
                       type="button"
                       onClick={toggleAutoPlay}
-                      className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
+                      className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#BCB893] hover:bg-[#CFCCAE] text-black transition-all shadow-xl shadow-[#BCB893]/20 cursor-pointer"
                     >
                       {isAutoPlaying ? (
                         <>
@@ -1115,7 +1120,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                       whileTap={{ scale: 0.97 }}
                       type="button"
                       onClick={onOpenBooking}
-                      className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 cursor-pointer"
+                      className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#BCB893] hover:bg-[#CFCCAE] text-black transition-all shadow-xl shadow-[#BCB893]/20 cursor-pointer"
                     >
                       <span>Book a Private Visit</span>
                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -1141,7 +1146,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                 <span
                   className={`text-[10px] font-mono tracking-widest uppercase transition-all duration-300 ${
                     isActive
-                      ? "text-[#C6A76B] opacity-100 font-semibold"
+                      ? "text-[#BCB893] opacity-100 font-semibold"
                       : "text-white/40 opacity-0 group-hover:opacity-100"
                   }`}
                 >
@@ -1151,7 +1156,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
                   {isActive ? (
                     <motion.div
                       layoutId="active-scrubber-pill"
-                      className="w-8 h-1.5 rounded-full bg-[#C6A76B] shadow-lg shadow-[#C6A76B]/50"
+                      className="w-8 h-1.5 rounded-full bg-[#BCB893] shadow-lg shadow-[#BCB893]/50"
                       transition={{ type: "spring", stiffness: 350, damping: 28 }}
                     />
                   ) : (
@@ -1167,7 +1172,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 z-30 pointer-events-none">
           <div
             ref={progressBarRef}
-            className="h-full bg-gradient-to-r from-[#C6A76B] via-[#E8D4A8] to-[#C6A76B] origin-left will-change-transform"
+            className="h-full bg-gradient-to-r from-[#BCB893] via-[#DCDAC2] to-[#BCB893] origin-left will-change-transform"
             style={{ transform: "scaleX(0)" }}
           />
         </div>
@@ -1178,7 +1183,7 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
           className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-white/50 text-[10px] font-mono tracking-[0.25em] uppercase transition-opacity duration-500 pointer-events-none z-30 animate-bounce"
         >
           <span>SCROLL TO ADVANCE JOURNEY</span>
-          <ArrowDown className="w-3.5 h-3.5 text-[#C6A76B]" />
+          <ArrowDown className="w-3.5 h-3.5 text-[#BCB893]" />
         </div>
       </div>
     </div>

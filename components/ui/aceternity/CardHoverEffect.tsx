@@ -46,7 +46,7 @@ export function CardHoverEffect({
           <AnimatePresence>
             {hoveredIndex === idx && (
               <motion.span
-                className="absolute inset-0 h-full w-full bg-[#C89D5C]/15 block rounded-2xl -z-0"
+                className="absolute inset-0 h-full w-full bg-[#BCB893]/15 block rounded-2xl -z-0"
                 layoutId="hoverBackground"
                 initial={{ opacity: 0 }}
                 animate={{
@@ -62,24 +62,24 @@ export function CardHoverEffect({
           </AnimatePresence>
           <div
             className={cn(
-              "rounded-xl h-full w-full p-6 overflow-hidden bg-[#FAF7F2] dark:bg-[#18110B]/90 border border-[#8C5A30]/20 group-hover:border-[#C89D5C]/50 relative z-10 transition-colors duration-300 shadow-sm",
+              "rounded-xl h-full w-full p-6 overflow-hidden bg-[#F8F7F0] dark:bg-[#1E1700]/90 border border-[#6B6840]/20 group-hover:border-[#BCB893]/50 relative z-10 transition-colors duration-300 shadow-sm",
               cardClassName
             )}
           >
             {item.badge && (
-              <span className="inline-block text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#C89D5C]/15 text-[#8C5A30] dark:text-[#DFBD85] font-semibold mb-3">
+              <span className="inline-block text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#BCB893]/15 text-[#6B6840] dark:text-[#CFCCAE] font-semibold mb-3">
                 {item.badge}
               </span>
             )}
             {item.icon && (
-              <div className="text-[#C89D5C] mb-4 text-2xl">
+              <div className="text-[#BCB893] mb-4 text-2xl">
                 {item.icon}
               </div>
             )}
-            <h4 className="font-serif text-xl font-medium tracking-tight text-[#241810] dark:text-[#FAF7F2] mb-2">
+            <h4 className="font-serif text-xl font-medium tracking-tight text-[#2B2612] dark:text-[#F8F7F0] mb-2">
               {item.title}
             </h4>
-            <p className="text-sm text-[#4A2A12]/80 dark:text-[#D8C3AC]/80 leading-relaxed font-sans">
+            <p className="text-sm text-[#3E3A1F]/80 dark:text-[#CFCCAE]/80 leading-relaxed font-sans">
               {item.description}
             </p>
           </div>

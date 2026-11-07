@@ -63,7 +63,7 @@ const DEFAULT_EASING = (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t));
 
 export function SmoothScrollProvider({
   children,
-  duration = 1.4,
+  duration = 0.9,
   easing = DEFAULT_EASING,
   smoothMobile = true,
   disabled = false,
@@ -130,10 +130,10 @@ export function SmoothScrollProvider({
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 0.9,
-      touchMultiplier: smoothMobile ? 1.6 : 1.0,
+      wheelMultiplier: 1.0,
+      touchMultiplier: smoothMobile ? 1.5 : 1.0,
       autoResize: true,
-      syncTouch: true,
+      syncTouch: false,
     });
 
     lenisRef.current = lenis;
@@ -148,8 +148,10 @@ export function SmoothScrollProvider({
     const tickerUpdate = (time: number) => {
       lenis.raf(time * 1000);
     };
-    gsap.ticker.add(tickerUpdate);
-    gsap.ticker.lagSmoothing(0);
+    // Prioritized: Lenis must update the scroll position before any
+    // scroll-driven renderer on the same ticker reads it in this frame.
+    gsap.ticker.add(tickerUpdate, false, true);
+    gsap.ticker.lagSmoothing(500, 33);
 
     // Expose lenis globally for debugging or component shortcuts
     if (typeof window !== "undefined") {

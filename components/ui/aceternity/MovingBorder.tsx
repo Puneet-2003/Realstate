@@ -53,7 +53,7 @@ export function MovingBorderButton({
         <MovingBorder duration={duration} rx="30%" ry="30%">
           <div
             className={cn(
-              "h-20 w-20 opacity-[0.8] bg-[radial-gradient(#DFBD85_40%,transparent_60%)]",
+              "h-20 w-20 opacity-[0.8] bg-[radial-gradient(#CFCCAE_40%,transparent_60%)]",
               borderClassName
             )}
           />
@@ -62,7 +62,7 @@ export function MovingBorderButton({
 
       <div
         className={cn(
-          "relative bg-[#FAF7F2] dark:bg-[#18110B] border border-[#C89D5C]/30 backdrop-blur-xl text-[#241810] dark:text-[#FAF7F2] flex items-center justify-center w-full h-full text-sm antialiased px-6 py-3 font-medium",
+          "relative bg-[#F8F7F0] dark:bg-[#1E1700] border border-[#BCB893]/30 backdrop-blur-xl text-[#2B2612] dark:text-[#F8F7F0] flex items-center justify-center w-full h-full text-sm antialiased px-6 py-3 font-medium",
           className
         )}
         style={{

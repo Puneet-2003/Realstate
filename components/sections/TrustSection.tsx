@@ -7,6 +7,7 @@ import {
   FileCheck,
   Scale,
   Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 
 export function TrustSection() {
@@ -29,134 +30,105 @@ export function TrustSection() {
     {
       step: "01",
       title: "Title & Provenance Audit",
-      desc: "Full forensic examination of chain of title, encumbrances, and historic provenance.",
+      desc: "Full forensic examination of chain of title, encumbrances, and historic architectural provenance.",
     },
     {
       step: "02",
       title: "Physical & Seismic Engineering",
-      desc: "Independent structural, mechanical, environmental, and soil stability clearance.",
+      desc: "Independent structural, mechanical, environmental, and soil stability engineering clearances.",
     },
     {
       step: "03",
       title: "Independent Valuation Modeling",
-      desc: "Dual appraisal reconciling historical comparables and replacement construction metrics.",
+      desc: "Dual appraisal reconciling private off-market comparables and replacement construction metrics.",
     },
     {
       step: "04",
       title: "Direct Principal Verification",
-      desc: "Direct confirmation of seller legal capacity and authority to convey fee simple title.",
+      desc: "Direct confirmation of seller legal capacity and sovereign authority to convey fee simple title.",
     },
   ];
 
   return (
-    <section id="trust" className="py-20 sm:py-28 bg-[#FAF7F2] relative overflow-hidden border-b border-[#D8C3AC]">
+    <section id="trust" className="py-24 sm:py-32 bg-[#F4F3EA] relative overflow-hidden border-b border-[#D7D4BD]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#6B3F1B] font-bold mb-2.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#8C5A30]" />
-            <span>Section 10 • Institutional Credibility</span>
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-[#9D9970] font-mono font-medium mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-[#9D9970]" />
+            <span>Fiduciary Integrity • Legal Verification</span>
           </div>
-          <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-[#120C08] font-normal tracking-tight">
-            Trust &amp; Verified <br />
-            <span className="italic font-normal text-[#7F4F24]">
-              Fiduciary Standards.
+          <h2 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-[#2B2712] font-light tracking-tight">
+            Institutional Trust &amp; <br />
+            <span className="italic text-[#9D9970]">
+              Due Diligence Protocol.
             </span>
           </h2>
-          <p className="mt-4 text-sm text-[#2D2018] font-normal leading-relaxed max-w-xl mx-auto">
-            Every transaction is backed by verified legal registrations, audited credentials, and globally recognized real estate affiliations.
+          <p className="mt-4 text-sm sm:text-base text-[#6F6C55] font-light leading-relaxed max-w-xl mx-auto">
+            Operating under rigorous international fiduciary standards with certified licenses, bonded escrows, and accredited legal partners.
           </p>
         </div>
 
-        {/* Credentials & Verified Listings Process Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-          {/* Left Column: Official Registrations & Awards */}
-          <div className="lg:col-span-5 flex flex-col justify-between p-8 rounded-3xl bg-white border border-[#D8C3AC] shadow-md shadow-[#2D1A0B]/6">
-            <div>
-              <div className="flex items-center gap-2 text-[#7F4F24] mb-4">
-                <ShieldCheck className="w-5 h-5 text-[#7F4F24]" />
-                <span className="text-xs font-mono uppercase tracking-widest font-bold">
-                  Official Licensing &amp; Registration
+        {/* 4-Step Diligence Process */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          {verificationSteps.map((item) => (
+            <div
+              key={item.step}
+              className="p-6 rounded-2xl bg-[#E7E5D4]/40 border border-[#D7D4BD] hover:border-[#9D9970]/60 transition-all flex flex-col justify-between"
+            >
+              <div>
+                <span className="font-serif text-3xl text-[#9D9970] font-light block mb-3">
+                  {item.step}
                 </span>
+                <h3 className="font-serif text-xl text-[#2B2712] font-normal tracking-tight">
+                  {item.title}
+                </h3>
+                <p className="mt-2.5 text-xs text-[#6F6C55] font-light leading-relaxed">
+                  {item.desc}
+                </p>
               </div>
-
-              <div className="space-y-3.5">
-                {credentials.map((cred) => (
-                  <div key={cred.label} className="p-3.5 rounded-xl bg-[#FAF7F2] border border-[#D8C3AC]">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-[#6B3F1B] font-bold block">
-                      {cred.label}
-                    </span>
-                    <span className="text-xs text-[#120C08] block font-semibold mt-0.5">
-                      {cred.value}
-                    </span>
-                  </div>
-                ))}
+              <div className="mt-5 pt-3 border-t border-[#D7D4BD]/70 flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-[#9D9970]">
+                <CheckCircle2 className="w-3 h-3 text-[#9D9970]" />
+                <span>Audited Standard</span>
               </div>
             </div>
-
-            {/* Awards & Recognition Highlight */}
-            <div className="mt-8 pt-6 border-t border-[#D8C3AC]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#7F4F24]/10 border border-[#7F4F24]/20 flex items-center justify-center shrink-0 text-[#7F4F24]">
-                  <Award className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm text-[#120C08] font-semibold font-serif">Best Luxury Brokerage 2025</h4>
-                  <span className="text-xs text-[#2D2018]">International Real Estate Excellence Awards, London</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: 4-Step Verified Listings Process */}
-          <div className="lg:col-span-7 p-8 rounded-3xl bg-white border border-[#D8C3AC] shadow-md shadow-[#2D1A0B]/6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-[#7F4F24] mb-6">
-                <FileCheck className="w-5 h-5 text-[#7F4F24]" />
-                <span className="text-xs font-mono uppercase tracking-widest font-bold">
-                  Our 4-Stage Listing Verification Protocol
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {verificationSteps.map((step) => (
-                  <div key={step.step} className="p-4 rounded-xl bg-[#FAF7F2] border border-[#D8C3AC]">
-                    <span className="text-lg font-mono text-[#7F4F24] font-bold block mb-1">
-                      {step.step}
-                    </span>
-                    <h5 className="text-sm font-semibold text-[#120C08] mb-1.5 font-serif">{step.title}</h5>
-                    <p className="text-xs text-[#2D2018] font-normal leading-relaxed">
-                      {step.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Transaction Transparency Guarantee */}
-            <div className="mt-8 pt-6 border-t border-[#D8C3AC] flex items-center gap-3 text-xs text-[#120C08]">
-              <Scale className="w-4 h-4 text-[#7F4F24] shrink-0" />
-              <span>
-                <strong className="text-[#7F4F24] font-bold">Zero-Conflict Guarantee:</strong> Dedicated buy-side representation ensuring strict legal loyalty to our client with full commission and disclosure transparency.
-              </span>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Prestigious Global Network Logos / Names Bar */}
-        <div className="mt-12 pt-8 border-t border-[#D8C3AC]">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#6B3F1B] block text-center mb-5 font-bold">
-            Institutional Affiliations &amp; Global Publication Partners
-          </span>
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12">
-            {partners.map((partner) => (
-              <span
-                key={partner}
-                className="text-xs sm:text-sm font-serif uppercase tracking-wider text-[#2D2018] font-semibold hover:text-[#7F4F24] transition-colors"
-              >
-                {partner}
+        {/* Legal License Grid & Global Affiliations */}
+        <div className="rounded-2xl bg-[#E7E5D4]/60 border border-[#D7D4BD] p-8 sm:p-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center divide-y md:divide-y-0 md:divide-x divide-[#D7D4BD]">
+            {/* Left: Licenses */}
+            <div className="space-y-4">
+              <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-[#9D9970] font-semibold block">
+                Fiduciary Compliance &amp; Licenses
               </span>
-            ))}
+              <div className="space-y-3">
+                {credentials.map((c) => (
+                  <div key={c.label} className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 text-xs">
+                    <span className="text-[#2B2712] font-medium">{c.label}:</span>
+                    <span className="font-mono text-[#6F6C55] text-[11px]">{c.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Partner Network */}
+            <div className="pt-6 md:pt-0 md:pl-8 space-y-4">
+              <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-[#9D9970] font-semibold block">
+                Global Architectural &amp; Advisory Network
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {partners.map((p) => (
+                  <span
+                    key={p}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-mono text-[#2B2712] bg-[#F4F3EA] border border-[#D7D4BD] font-light"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

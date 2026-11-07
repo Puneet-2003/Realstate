@@ -8,7 +8,7 @@ export function TrustStats() {
   const icons = [Award, ShieldCheck, Globe, Clock];
 
   return (
-    <section className="py-20 bg-[#09090e] border-t border-b border-white/5 relative">
+    <section className="py-20 bg-[#171200] border-t border-b border-white/5 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 divide-y sm:divide-y-0 sm:divide-x divide-white/10">
           {TRUST_METRICS.map((metric, index) => {
@@ -19,8 +19,8 @@ export function TrustStats() {
                 className={`flex flex-col items-start ${index !== 0 ? "pt-6 sm:pt-0 sm:pl-8 lg:pl-10" : ""}`}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <Icon className="w-4 h-4 text-[#c5a880]" />
-                  <span className="text-[10px] uppercase tracking-widest text-[#c5a880] font-mono">
+                  <Icon className="w-4 h-4 text-[#BCB893]" />
+                  <span className="text-[10px] uppercase tracking-widest text-[#BCB893] font-mono">
                     Track Record
                   </span>
                 </div>
@@ -37,8 +37,8 @@ export function TrustStats() {
                   </span>
                 </div>
 
-                <h4 className="text-sm font-medium text-zinc-200 mt-2">{metric.label}</h4>
-                <p className="text-xs text-zinc-400 mt-1 font-light leading-relaxed">
+                <h4 className="text-sm font-medium text-[#DCDAC2] mt-2">{metric.label}</h4>
+                <p className="text-xs text-[#A9A68A] mt-1 font-light leading-relaxed">
                   {metric.subtext}
                 </p>
               </div>

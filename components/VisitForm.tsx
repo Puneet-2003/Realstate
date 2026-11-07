@@ -17,6 +17,7 @@ import {
   RippleButton,
   RippleButtonRipples,
 } from "@animate-ui/react/primitives/buttons/ripple";
+import { whatsappUrl } from "@/lib/whatsapp";
 
 export function VisitForm() {
   const [fullName, setFullName] = useState("");
@@ -93,9 +94,9 @@ export function VisitForm() {
   }, []);
 
   return (
-    <section id="inquire" className="py-28 sm:py-36 bg-[#050505] relative overflow-hidden">
+    <section id="inquire" className="py-28 sm:py-36 bg-[#140F00] relative overflow-hidden">
       {/* Background architectural glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-[#C6A76B]/5 blur-[160px] pointer-events-none rounded-full" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-[#BCB893]/5 blur-[160px] pointer-events-none rounded-full" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
@@ -106,14 +107,14 @@ export function VisitForm() {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="text-center max-w-3xl mx-auto mb-16"
         >
-          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.3em] text-[#C6A76B] mb-3">
+          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.3em] text-[#BCB893] mb-3">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Private Acquisition &amp; Residency</span>
           </div>
 
           <h2 className="font-serif text-4xl sm:text-6xl text-white font-light tracking-tight leading-[1.08]">
             Your Next Chapter <br />
-            <span className="italic font-normal text-gradient bg-gradient-to-r from-[#FFFFFF] via-[#E8D4A8] to-[#C6A76B] bg-clip-text text-transparent">
+            <span className="italic font-normal text-gradient bg-gradient-to-r from-[#FFFFFF] via-[#DCDAC2] to-[#BCB893] bg-clip-text text-transparent">
               Begins Here.
             </span>
           </h2>
@@ -132,14 +133,14 @@ export function VisitForm() {
               <TiltContent className="rounded-2xl overflow-hidden border border-white/10 relative shadow-2xl bg-black flex flex-col justify-between group h-full">
                 <div className="relative aspect-[4/5] lg:aspect-auto lg:h-full w-full overflow-hidden">
                   <img
-                    src="/sequence/frame-001.jpg"
+                    src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1600&auto=format&fit=crop"
                     alt="The Lumière Tower Twilight Exterior"
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
 
                   <div className="absolute top-6 left-6 right-6 flex items-center justify-between pointer-events-none">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#C6A76B] bg-black/70 px-3 py-1 rounded-full backdrop-blur-md border border-[#C6A76B]/30">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#BCB893] bg-black/70 px-3 py-1 rounded-full backdrop-blur-md border border-[#BCB893]/30">
                       FLAGSHIP MONOLITH
                     </span>
                     <span className="text-[10px] font-mono text-white/70 bg-black/60 px-2.5 py-1 rounded-full">
@@ -148,7 +149,7 @@ export function VisitForm() {
                   </div>
 
                   <div className="absolute bottom-6 left-6 right-6 pointer-events-none">
-                    <span className="text-xs font-mono text-[#C6A76B] uppercase tracking-wider block">
+                    <span className="text-xs font-mono text-[#BCB893] uppercase tracking-wider block">
                       The Lumière Tower
                     </span>
                     <h4 className="font-serif text-2xl text-white font-light mt-1">
@@ -162,7 +163,7 @@ export function VisitForm() {
 
                     <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/40">
                       <span>SALES GALLERY OPEN DAILY</span>
-                      <span className="text-[#C6A76B]">BY APPOINTMENT</span>
+                      <span className="text-[#BCB893]">BY APPOINTMENT</span>
                     </div>
                   </div>
                 </div>
@@ -176,7 +177,7 @@ export function VisitForm() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="lg:col-span-7 bg-[#09090D] border border-white/10 rounded-2xl p-6 sm:p-10 shadow-2xl flex flex-col justify-between"
+            className="lg:col-span-7 bg-[#171200] border border-white/10 rounded-2xl p-6 sm:p-10 shadow-2xl flex flex-col justify-between"
           >
             <AnimatePresence mode="wait">
               {submittedBooking ? (
@@ -188,11 +189,11 @@ export function VisitForm() {
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                   className="py-10 text-center"
                 >
-                  <div className="w-16 h-16 rounded-full bg-[#C6A76B]/20 border border-[#C6A76B] flex items-center justify-center mx-auto mb-5 text-[#C6A76B]">
+                  <div className="w-16 h-16 rounded-full bg-[#BCB893]/20 border border-[#BCB893] flex items-center justify-center mx-auto mb-5 text-[#BCB893]">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
 
-                  <span className="text-xs font-mono uppercase tracking-[0.25em] text-[#C6A76B] font-semibold">
+                  <span className="text-xs font-mono uppercase tracking-[0.25em] text-[#BCB893] font-semibold">
                     CONFIDENTIAL APPOINTMENT CONFIRMED
                   </span>
 
@@ -207,10 +208,10 @@ export function VisitForm() {
                   </p>
 
                   {/* Booking Receipt Voucher */}
-                  <div className="mt-8 max-w-md mx-auto p-5 rounded-xl bg-black/60 border border-[#C6A76B]/30 text-left font-mono text-xs shadow-inner">
+                  <div className="mt-8 max-w-md mx-auto p-5 rounded-xl bg-black/60 border border-[#BCB893]/30 text-left font-mono text-xs shadow-inner">
                     <div className="flex items-center justify-between pb-3 border-b border-white/10">
                       <span className="text-white/40">REFERENCE NUMBER</span>
-                      <span className="text-[#C6A76B] font-bold">
+                      <span className="text-[#BCB893] font-bold">
                         {submittedBooking.reference}
                       </span>
                     </div>
@@ -226,10 +227,10 @@ export function VisitForm() {
 
                   <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                     <a
-                      href={`https://wa.me/442079460912?text=Hello%2C%20I%20have%20submitted%20private%20visit%20reference%20${submittedBooking.reference}%20for%20The%20Lumi%C3%A8re.`}
+                      href={whatsappUrl(`Hello, I have submitted private visit reference ${submittedBooking.reference} for The Lumière.`)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] text-black hover:bg-[#d8be85] transition-all inline-block text-center"
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#BCB893] text-black hover:bg-[#CFCCAE] transition-all inline-block text-center"
                     >
                       Connect via WhatsApp Concierge
                     </a>
@@ -261,7 +262,7 @@ export function VisitForm() {
                         Direct access to senior partners • Strict client confidentiality
                       </p>
                     </div>
-                    <ShieldCheck className="w-5 h-5 text-[#C6A76B]" />
+                    <ShieldCheck className="w-5 h-5 text-[#BCB893]" />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -280,7 +281,7 @@ export function VisitForm() {
                           className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border text-xs text-white placeholder:text-white/25 focus:outline-none transition-colors ${
                             errors.fullName
                               ? "border-rose-500 focus:border-rose-500"
-                              : "border-white/10 focus:border-[#C6A76B]"
+                              : "border-white/10 focus:border-[#BCB893]"
                           }`}
                         />
                       </div>
@@ -306,7 +307,7 @@ export function VisitForm() {
                           className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border text-xs text-white placeholder:text-white/25 focus:outline-none transition-colors ${
                             errors.email
                               ? "border-rose-500 focus:border-rose-500"
-                              : "border-white/10 focus:border-[#C6A76B]"
+                              : "border-white/10 focus:border-[#BCB893]"
                           }`}
                         />
                       </div>
@@ -334,7 +335,7 @@ export function VisitForm() {
                           className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border text-xs text-white placeholder:text-white/25 focus:outline-none transition-colors ${
                             errors.phone
                               ? "border-rose-500 focus:border-rose-500"
-                              : "border-white/10 focus:border-[#C6A76B]"
+                              : "border-white/10 focus:border-[#BCB893]"
                           }`}
                         />
                       </div>
@@ -360,7 +361,7 @@ export function VisitForm() {
                           className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border text-xs text-white focus:outline-none transition-colors scheme-dark ${
                             errors.visitDate
                               ? "border-rose-500 focus:border-rose-500"
-                              : "border-white/10 focus:border-[#C6A76B]"
+                              : "border-white/10 focus:border-[#BCB893]"
                           }`}
                         />
                       </div>
@@ -380,18 +381,18 @@ export function VisitForm() {
                     <select
                       value={residenceTier}
                       onChange={(e) => setResidenceTier(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white focus:outline-none focus:border-[#C6A76B] transition-colors"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white focus:outline-none focus:border-[#BCB893] transition-colors"
                     >
-                      <option value="The Sky Penthouse ($48.5M)" className="bg-[#09090D] text-white">
+                      <option value="The Sky Penthouse ($48.5M)" className="bg-[#171200] text-white">
                         The Sky Penthouse — Levels 64–68 ($48,500,000)
                       </option>
-                      <option value="The Horizon Duplex ($28.0M)" className="bg-[#09090D] text-white">
+                      <option value="The Horizon Duplex ($28.0M)" className="bg-[#171200] text-white">
                         The Horizon Duplex — Levels 46–52 ($28,000,000)
                       </option>
-                      <option value="The Tower Panorama ($16.5M)" className="bg-[#09090D] text-white">
+                      <option value="The Tower Panorama ($16.5M)" className="bg-[#171200] text-white">
                         The Tower Panorama — Levels 28–44 ($16,500,000)
                       </option>
-                      <option value="General Portfolio Inquiry" className="bg-[#09090D] text-white">
+                      <option value="General Portfolio Inquiry" className="bg-[#171200] text-white">
                         General Development &amp; Investment Inquiry
                       </option>
                     </select>
@@ -407,7 +408,7 @@ export function VisitForm() {
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Helipad transfer requirements, private security protocols, or NDA requests..."
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-[#C6A76B] transition-colors resize-none"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-[#BCB893] transition-colors resize-none"
                     />
                   </div>
 
@@ -421,7 +422,7 @@ export function VisitForm() {
                     <RippleButton
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full sm:w-auto px-8 py-3 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all shadow-xl shadow-[#C6A76B]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="w-full sm:w-auto px-8 py-3 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#BCB893] hover:bg-[#CFCCAE] text-black transition-all shadow-xl shadow-[#BCB893]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
                       {isSubmitting ? (

@@ -1,20 +1,25 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { Noto_Serif, Fira_Sans } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SmoothScrollProvider } from "@/components/animation/SmoothScrollProvider";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 
-const cormorant = Cormorant_Garamond({
+// Self-hosted by next/font (no request to Google at runtime, no layout shift).
+// Noto Serif is a variable font: the full 100–900 weight range is included.
+const notoSerif = Noto_Serif({
   variable: "--font-serif",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
-const jakarta = Plus_Jakarta_Sans({
+// Fira Sans is not variable, so only the weights the site uses are loaded.
+const firaSans = Fira_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
@@ -37,22 +42,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorant.variable} ${jakarta.variable}`}
+      className={`${notoSerif.variable} ${firaSans.variable}`}
     >
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="min-h-screen bg-[#FAF7F2] text-[#120C08] font-sans antialiased selection:bg-[#C89D5C]/30 selection:text-[#120C08]">
+      <body className="min-h-screen bg-[#F8F7F0] text-[#1E1700] font-sans antialiased selection:bg-[#BCB893]/30 selection:text-[#1E1700]">
         <SmoothScrollProvider>
           <TooltipProvider delayDuration={150}>
             {children}
           </TooltipProvider>
         </SmoothScrollProvider>
+        <WhatsAppButton />
       </body>
     </html>
   );

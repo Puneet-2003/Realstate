@@ -35,7 +35,7 @@ export function FeaturedPropertiesSection() {
   });
 
   return (
-    <section id="properties" className="py-20 sm:py-28 bg-[#FAF7F2] relative overflow-hidden border-b border-[#8C5A30]/20">
+    <section id="properties" className="py-24 sm:py-32 bg-[#F4F3EA] relative overflow-hidden border-b border-[#D7D4BD]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <motion.div
@@ -43,20 +43,20 @@ export function FeaturedPropertiesSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.6 }}
-          className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[#8C5A30]/25"
+          className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[#D7D4BD]"
         >
           <div>
-            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#6B3F1B] font-bold mb-2.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#8C5A30]" />
-              <span>Section 04 • Curated Residences</span>
+            <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-[#9D9970] font-mono font-medium mb-3">
+              <Sparkles className="w-3.5 h-3.5 text-[#9D9970]" />
+              <span>Curated Portfolio • Trophy Residences</span>
             </div>
-            <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-[#120C08] font-normal tracking-tight">
-              Featured <span className="italic font-normal text-[#7F4F24]">Properties.</span>
+            <h2 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-[#2B2712] font-light tracking-tight">
+              Featured <span className="italic text-[#9D9970]">Residences.</span>
             </h2>
           </div>
 
-          <p className="text-[#2D2018] text-sm max-w-sm font-normal leading-relaxed">
-            Curated architectural masterworks with unrepeatable views and exceptional provenance.
+          <p className="text-[#6F6C55] text-sm max-w-sm font-light leading-relaxed">
+            Architectural masterworks distinguished by unrepeatable topographies, bespoke craft, and peerless provenance.
           </p>
         </motion.div>
 
@@ -70,20 +70,13 @@ export function FeaturedPropertiesSection() {
                   key={cat}
                   type="button"
                   onClick={() => setActiveFilter(cat)}
-                  className={`relative px-4 py-2 rounded-full text-xs uppercase tracking-wider transition-all cursor-pointer font-medium ${
+                  className={`relative px-4 py-2 rounded-full text-xs font-mono tracking-wider uppercase transition-all cursor-pointer ${
                     isActive
-                      ? "text-[#FAF7F2] font-semibold"
-                      : "text-[#2D2018] hover:text-[#120C08] bg-white border border-[#D8C3AC] shadow-xs"
+                      ? "text-[#F4F3EA] bg-[#1E1700] shadow-md shadow-black/20"
+                      : "text-[#6F6C55] hover:text-[#2B2712] bg-[#E7E5D4] hover:bg-[#D7D4BD]"
                   }`}
                 >
-                  {isActive && (
-                    <motion.div
-                      layoutId="activePropTab"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                      className="absolute inset-0 bg-[#7F4F24] rounded-full shadow-md shadow-[#7F4F24]/30"
-                    />
-                  )}
-                  <span className="relative z-10">{cat === "All" ? "All Featured" : cat}</span>
+                  {cat}
                 </button>
               );
             })}
@@ -91,30 +84,31 @@ export function FeaturedPropertiesSection() {
 
           <Link
             href="/properties"
-            className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7F4F24] hover:text-[#120C08] group transition-colors font-bold"
+            className="group inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.2em] text-[#2B2712] hover:text-[#9D9970] transition-colors py-2"
           >
-            <span>View All Properties ({PROPERTIES.length})</span>
-            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+            <span>Explore All 24 Trophy Estates</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
 
-        {/* Property Grid with High-Contrast Typography & Sharp Borders */}
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Properties Grid */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
           <AnimatePresence mode="popLayout">
-            {filteredProperties.map((property) => {
-              const fav = isFavorite(property.id);
+            {filteredProperties.map((property, idx) => {
+              const favorite = isFavorite(property.id);
+
               return (
-                <motion.article
+                <motion.div
                   key={property.id}
                   layout
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.4 }}
-                  className="group relative flex flex-col rounded-2xl bg-white border border-[#D8C3AC] hover:border-[#7F4F24] transition-all duration-300 overflow-hidden shadow-md shadow-[#2D1A0B]/6 hover:shadow-2xl hover:shadow-[#2D1A0B]/14"
+                  transition={{ duration: 0.45, delay: idx * 0.05 }}
+                  className="group relative flex flex-col rounded-2xl overflow-hidden bg-[#E7E5D4]/50 border border-[#D7D4BD] hover:border-[#9D9970]/60 transition-all duration-300 hover:shadow-xl hover:shadow-[#1E1700]/5"
                 >
-                  {/* Image Container with Badges & Save Icon */}
-                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-black/10">
+                  {/* Card Image Container */}
+                  <div className="relative aspect-[16/11] w-full overflow-hidden bg-[#1E1700]">
                     <Image
                       src={property.coverImage}
                       alt={property.title}
@@ -122,93 +116,89 @@ export function FeaturedPropertiesSection() {
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#1E1700]/80 via-[#1E1700]/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
-                    {/* Top Badges */}
-                    <div className="absolute top-3.5 left-3.5 flex items-center gap-2 z-10">
-                      {property.featured && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] uppercase font-mono tracking-wider bg-[#7F4F24] text-white font-bold shadow-md">
-                          Verified Asset
-                        </span>
-                      )}
-                      <span className="px-2.5 py-1 rounded-full text-[10px] uppercase font-mono tracking-wider bg-black/70 text-white border border-white/25 backdrop-blur-md font-medium">
+                    {/* Top Status & Category Badges */}
+                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                      <span className="px-3 py-1 rounded-full text-[10px] font-mono tracking-widest uppercase bg-[#1E1700]/75 text-[#9D9970] border border-[#9D9970]/30 backdrop-blur-md font-semibold">
                         {property.category}
                       </span>
+
+                      {/* Favorite Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleFavorite(property.id);
+                        }}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer backdrop-blur-md ${
+                          favorite
+                            ? "bg-rose-500/90 text-white shadow-lg shadow-rose-500/30"
+                            : "bg-[#1E1700]/60 text-white/80 hover:text-white hover:bg-[#1E1700]/90 border border-white/20"
+                        }`}
+                        aria-label="Add to private favorites"
+                      >
+                        <Heart className={`w-4 h-4 ${favorite ? "fill-current" : ""}`} />
+                      </button>
                     </div>
 
-                    {/* Favorite Heart Button */}
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(property.id)}
-                      className={`absolute top-3.5 right-3.5 z-10 p-2 rounded-full backdrop-blur-md transition-all cursor-pointer ${
-                        fav
-                          ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
-                          : "bg-black/60 text-white hover:text-white border border-white/20 hover:scale-110"
-                      }`}
-                      aria-label={fav ? "Remove from saved" : "Save property"}
-                    >
-                      <Heart className={`w-4 h-4 ${fav ? "fill-current" : ""}`} />
-                    </button>
-
-                    {/* Price Tag Overlay */}
-                    <div className="absolute bottom-3 left-4 z-10">
-                      <span className="text-xl sm:text-2xl font-serif text-white font-normal drop-shadow-md tracking-tight">
-                        {property.priceFormatted}
-                      </span>
-                      <span className="text-[11px] text-[#F3E5C8] block font-mono font-medium drop-shadow-sm">
-                        {property.pricePerSqFt}
-                      </span>
+                    {/* Location Badge */}
+                    <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 text-xs text-[#F4F3EA] drop-shadow-md font-light">
+                      <MapPin className="w-3.5 h-3.5 text-[#9D9970]" />
+                      <span>{property.location.neighborhood}, {property.location.city}</span>
                     </div>
                   </div>
 
-                  {/* Card Body with Clear Readable Typography */}
-                  <div className="p-6 flex-1 flex flex-col justify-between">
+                  {/* Card Content */}
+                  <div className="p-6 sm:p-7 flex-1 flex flex-col justify-between">
                     <div>
-                      {/* Location */}
-                      <div className="flex items-center gap-1.5 text-xs text-[#7F4F24] mb-2 font-semibold">
-                        <MapPin className="w-3.5 h-3.5 text-[#7F4F24] shrink-0" />
-                        <span>{property.location.neighborhood}, {property.location.city}</span>
+                      {/* Price Header */}
+                      <div className="flex items-baseline justify-between mb-2">
+                        <span className="font-serif text-2xl sm:text-3xl text-[#2B2712] font-normal tracking-tight">
+                          {property.priceFormatted}
+                        </span>
+                        <span className="text-[11px] font-mono text-[#6F6C55]">
+                          {property.pricePerSqFt}
+                        </span>
                       </div>
 
-                      {/* Title: Dark, solid, prestigious font */}
-                      <h3 className="font-serif text-xl sm:text-2xl text-[#120C08] font-medium tracking-tight group-hover:text-[#7F4F24] transition-colors leading-snug">
+                      {/* Title & Philosophy */}
+                      <h3 className="font-serif text-xl sm:text-2xl text-[#2B2712] font-light tracking-wide group-hover:text-[#9D9970] transition-colors">
                         {property.title}
                       </h3>
-
-                      {/* Subtitle: High-contrast body text */}
-                      <p className="text-xs sm:text-sm text-[#2D2018] font-normal mt-2 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-[#6F6C55] font-light line-clamp-2 mt-2 leading-relaxed">
                         {property.subtitle}
                       </p>
                     </div>
 
-                    {/* Specs Row */}
-                    <div className="mt-5 pt-4 border-t border-[#8C5A30]/20 grid grid-cols-3 gap-2 text-center text-xs text-[#120C08] font-semibold">
-                      <div className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#FAF7F2] border border-[#D8C3AC]">
-                        <Bed className="w-3.5 h-3.5 text-[#7F4F24]" />
+                    {/* Architectural Specifications Grid */}
+                    <div className="mt-6 pt-5 border-t border-[#D7D4BD] grid grid-cols-3 gap-2 text-center text-xs text-[#6F6C55]">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Bed className="w-3.5 h-3.5 text-[#9D9970]" />
                         <span>{property.bedrooms} Beds</span>
                       </div>
-                      <div className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#FAF7F2] border border-[#D8C3AC]">
-                        <Bath className="w-3.5 h-3.5 text-[#7F4F24]" />
+                      <div className="flex items-center justify-center gap-1.5 border-x border-[#D7D4BD]">
+                        <Bath className="w-3.5 h-3.5 text-[#9D9970]" />
                         <span>{property.bathrooms} Baths</span>
                       </div>
-                      <div className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#FAF7F2] border border-[#D8C3AC]">
-                        <Square className="w-3.5 h-3.5 text-[#7F4F24]" />
-                        <span>{property.areaSqFt.toLocaleString()} sqft</span>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Square className="w-3.5 h-3.5 text-[#9D9970]" />
+                        <span>{property.areaSqFt.toLocaleString()} sq ft</span>
                       </div>
                     </div>
 
-                    {/* View Details Button with High Contrast & Hover */}
+                    {/* Link Action */}
                     <div className="mt-5">
                       <Link
                         href={`/properties/${property.slug}`}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs uppercase tracking-widest font-bold bg-[#FAF7F2] hover:bg-[#7F4F24] text-[#120C08] hover:text-[#FAF7F2] border border-[#C89D5C]/40 hover:border-[#7F4F24] transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md"
+                        className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-mono uppercase tracking-[0.2em] font-medium bg-[#F4F3EA] hover:bg-[#1E1700] text-[#2B2712] hover:text-[#F4F3EA] border border-[#D7D4BD] hover:border-[#1E1700] transition-all cursor-pointer"
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>View Residence</span>
+                        <span>View Architectural Dossier</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
-                </motion.article>
+                </motion.div>
               );
             })}
           </AnimatePresence>

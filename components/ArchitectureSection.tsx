@@ -90,7 +90,7 @@ const ENGINEERING_SPECS = [
 
 export function ArchitectureSection() {
   return (
-    <section id="architecture" className="py-24 sm:py-32 bg-[#050505] relative">
+    <section id="architecture" className="py-24 sm:py-32 bg-[#140F00] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Editorial Section Header */}
         <motion.div
@@ -101,13 +101,13 @@ export function ArchitectureSection() {
           className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-10 border-b border-white/10"
         >
           <div>
-            <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#C6A76B] mb-3">
+            <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#BCB893] mb-3">
               <Layers className="w-3.5 h-3.5" />
               <span>Materiality &amp; Engineering</span>
             </div>
-            <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight leading-[1.1]">
+            <h2 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-white font-light tracking-tight leading-[1.1]">
               Architectural <br />
-              <span className="italic font-normal bg-gradient-to-r from-[#FFFFFF] via-[#E8D4A8] to-[#C6A76B] bg-clip-text text-transparent">
+              <span className="italic font-normal bg-gradient-to-r from-[#FFFFFF] via-[#DCDAC2] to-[#BCB893] bg-clip-text text-transparent">
                 Precision &amp; Matter.
               </span>
             </h2>
@@ -122,22 +122,22 @@ export function ArchitectureSection() {
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {MATERIALS.map((mat) => (
             <Tilt key={mat.title} maxTilt={10} perspective={900} className="w-full">
-              <TiltContent className="group rounded-2xl bg-[#09090D] border border-white/10 hover:border-[#C6A76B]/40 transition-colors duration-300 overflow-hidden flex flex-col justify-between shadow-xl h-full">
+              <TiltContent className="group rounded-2xl bg-[#171200] border border-white/10 hover:border-[#BCB893]/40 transition-colors duration-300 overflow-hidden flex flex-col justify-between shadow-xl h-full">
                 <div className="relative aspect-[16/11] w-full overflow-hidden bg-black">
                   <img
                     src={mat.image}
                     alt={mat.title}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#09090D] via-transparent to-transparent pointer-events-none" />
-                  <span className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-widest text-[#C6A76B] bg-black/70 px-2.5 py-1 rounded-full backdrop-blur-md border border-[#C6A76B]/20 pointer-events-none">
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#171200] via-transparent to-transparent pointer-events-none" />
+                  <span className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-widest text-[#BCB893] bg-black/70 px-2.5 py-1 rounded-full backdrop-blur-md border border-[#BCB893]/20 pointer-events-none">
                     {mat.spec}
                   </span>
                 </div>
 
                 <div className="p-5 flex-1 flex flex-col justify-between">
                   <div>
-                    <h3 className="font-serif text-lg text-white font-light group-hover:text-[#F5F0E8] transition-colors">
+                    <h3 className="font-serif text-lg text-white font-light group-hover:text-[#F1EFE3] transition-colors">
                       {mat.title}
                     </h3>
                     <p className="text-xs text-white/60 font-light mt-1.5 leading-relaxed">
@@ -160,10 +160,10 @@ export function ArchitectureSection() {
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.5, delay: idx * 0.06 }}
               whileHover={{ y: -3 }}
-              className="p-5 sm:p-6 rounded-2xl bg-[#09090C] border border-white/10 hover:border-[#C6A76B]/30 transition-colors flex flex-col justify-between"
+              className="p-5 sm:p-6 rounded-2xl bg-[#09090C] border border-white/10 hover:border-[#BCB893]/30 transition-colors flex flex-col justify-between"
             >
               <div>
-                <span className="text-2xl sm:text-3xl font-serif text-[#C6A76B] block font-light">
+                <span className="text-2xl sm:text-3xl font-serif text-[#BCB893] block font-light">
                   {metric.value}
                 </span>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-white mt-1.5 font-mono">
@@ -180,7 +180,7 @@ export function ArchitectureSection() {
         {/* Animate UI Accordion: Deep Architectural Engineering & Building Specs */}
         <div className="mt-20 pt-16 border-t border-white/10">
           <div className="max-w-3xl mb-8">
-            <Badge variant="outline" className="text-[#C6A76B] border-[#C6A76B]/30 font-mono text-[10px] uppercase tracking-widest px-3 py-1 mb-3">
+            <Badge variant="outline" className="text-[#BCB893] border-[#BCB893]/30 font-mono text-[10px] uppercase tracking-widest px-3 py-1 mb-3">
               Technical Dossier
             </Badge>
             <h3 className="text-2xl sm:text-4xl font-serif text-white font-light">
@@ -198,15 +198,15 @@ export function ArchitectureSection() {
                 <AccordionItem
                   key={spec.id}
                   value={spec.id}
-                  className="rounded-xl border border-white/10 bg-[#09090D] px-6 py-2 transition-colors data-[state=open]:border-[#C6A76B]/40 data-[state=open]:bg-[#0c0c14]"
+                  className="rounded-xl border border-white/10 bg-[#171200] px-6 py-2 transition-colors data-[state=open]:border-[#BCB893]/40 data-[state=open]:bg-[#0c0c14]"
                 >
                   <AccordionTrigger className="hover:no-underline cursor-pointer py-4">
                     <div className="flex items-center gap-4 text-left">
-                      <div className="w-9 h-9 rounded-lg bg-[#C6A76B]/10 border border-[#C6A76B]/20 flex items-center justify-center text-[#C6A76B] shrink-0">
+                      <div className="w-9 h-9 rounded-lg bg-[#BCB893]/10 border border-[#BCB893]/20 flex items-center justify-center text-[#BCB893] shrink-0">
                         <Icon className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-[#C6A76B] block">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-[#BCB893] block">
                           {spec.category}
                         </span>
                         <span className="font-serif text-lg sm:text-xl text-white font-light mt-0.5 block">

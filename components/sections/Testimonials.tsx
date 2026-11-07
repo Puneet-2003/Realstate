@@ -19,45 +19,45 @@ export function Testimonials() {
   const current = BRAND_TESTIMONIALS[currentIndex];
 
   return (
-    <section className="py-24 sm:py-32 bg-[#070709] relative overflow-hidden">
+    <section className="py-24 sm:py-32 bg-[#140F00] relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#c5a880] font-semibold mb-3">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#BCB893] font-semibold mb-3">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Private Client Voices</span>
           </div>
           <h2 className="font-serif text-3xl sm:text-5xl text-white font-light tracking-tight">
             Endorsed by Discerning <span className="italic font-normal text-gold-gradient">Collectors.</span>
           </h2>
-          <p className="text-xs sm:text-sm text-zinc-400 mt-3 font-light">
+          <p className="text-xs sm:text-sm text-[#A9A68A] mt-3 font-light">
             Reflecting on acquisitions facilitated with utmost discretion and architectural stewardship.
           </p>
         </div>
 
         {/* Testimonial Feature Card */}
-        <div className="relative rounded-3xl bg-[#0e0e14] border border-[#c5a880]/20 p-8 sm:p-14 shadow-2xl">
-          <div className="absolute top-8 right-8 text-[#c5a880]/20 pointer-events-none">
+        <div className="relative rounded-3xl bg-[#171200] border border-[#BCB893]/20 p-8 sm:p-14 shadow-2xl">
+          <div className="absolute top-8 right-8 text-[#BCB893]/20 pointer-events-none">
             <Quote className="w-16 h-16 sm:w-24 sm:h-24" />
           </div>
 
           <div className="max-w-3xl">
             {/* Stars */}
-            <div className="flex items-center gap-1 mb-6 text-[#c5a880]">
+            <div className="flex items-center gap-1 mb-6 text-[#BCB893]">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star key={i} className="w-4 h-4 fill-current" />
               ))}
             </div>
 
             {/* Quote */}
-            <blockquote className="font-serif text-xl sm:text-2xl md:text-3xl text-zinc-100 font-light leading-relaxed">
+            <blockquote className="font-serif text-xl sm:text-2xl md:text-3xl text-[#ECEADB] font-light leading-relaxed">
               &ldquo;{current.quote}&rdquo;
             </blockquote>
 
             {/* Author Info */}
             <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-4">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#c5a880]/40">
+                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#BCB893]/40">
                   <Image
                     src={current.avatar}
                     alt={current.clientName}
@@ -67,8 +67,8 @@ export function Testimonials() {
                 </div>
                 <div>
                   <h4 className="font-serif text-lg text-white font-normal">{current.clientName}</h4>
-                  <span className="text-xs text-zinc-400 block">{current.title}</span>
-                  <span className="text-[11px] text-[#c5a880] block font-mono">{current.residence}</span>
+                  <span className="text-xs text-[#A9A68A] block">{current.title}</span>
+                  <span className="text-[11px] text-[#BCB893] block font-mono">{current.residence}</span>
                 </div>
               </div>
 
@@ -78,18 +78,18 @@ export function Testimonials() {
                   type="button"
                   onClick={prevSlide}
                   aria-label="Previous endorsement"
-                  className="w-10 h-10 rounded-full border border-white/15 hover:border-[#c5a880] hover:text-[#c5a880] flex items-center justify-center text-zinc-300 transition-colors cursor-pointer"
+                  className="w-10 h-10 rounded-full border border-white/15 hover:border-[#BCB893] hover:text-[#BCB893] flex items-center justify-center text-[#C9C7AE] transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="text-xs text-zinc-500 font-mono px-2">
+                <div className="text-xs text-[#8A876A] font-mono px-2">
                   0{currentIndex + 1} / 0{BRAND_TESTIMONIALS.length}
                 </div>
                 <button
                   type="button"
                   onClick={nextSlide}
                   aria-label="Next endorsement"
-                  className="w-10 h-10 rounded-full border border-white/15 hover:border-[#c5a880] hover:text-[#c5a880] flex items-center justify-center text-zinc-300 transition-colors cursor-pointer"
+                  className="w-10 h-10 rounded-full border border-white/15 hover:border-[#BCB893] hover:text-[#BCB893] flex items-center justify-center text-[#C9C7AE] transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>

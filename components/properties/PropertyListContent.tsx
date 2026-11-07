@@ -12,6 +12,7 @@ import {
 import { PROPERTIES } from "@/lib/properties";
 import { filterProperties, DEFAULT_FILTERS } from "@/lib/filters";
 import { PropertyCard } from "@/components/properties/PropertyCard";
+import { FadeIn, StaggerContainer, StaggerItem } from "@/components/animation";
 import { FilterState, ListingType } from "@/types/property";
 
 export function PropertyListContent() {
@@ -65,35 +66,37 @@ export function PropertyListContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
       {/* Header bar */}
-      <div className="pb-8 border-b border-[#D8C3AC]">
-        <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#6B3F1B] font-bold mb-2">
-          <Sparkles className="w-3.5 h-3.5 text-[#8C5A30]" />
+      <StaggerContainer staggerDelay={0.12} className="pb-8 border-b border-[#CFCCAE]">
+        <StaggerItem className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#4C4829] font-bold mb-2">
+          <Sparkles className="w-3.5 h-3.5 text-[#6B6840]" />
           <span>The Global Collection</span>
-        </div>
-        <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-[#120C08] font-normal tracking-tight">
-          Exceptional <span className="italic font-normal text-[#7F4F24]">Residences.</span>
+        </StaggerItem>
+        <StaggerItem>
+        <h1 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-[#1E1700] font-normal tracking-tight">
+          Exceptional <span className="italic font-normal text-[#5A5734]">Residences.</span>
         </h1>
-        <p className="mt-3 text-sm sm:text-base text-[#2D2018] font-normal max-w-2xl leading-relaxed">
+        </StaggerItem>
+        <StaggerItem as="div" className="mt-3 text-sm sm:text-base text-[#3E3A1F] font-normal max-w-2xl leading-relaxed">
           Explore vetted architectural monuments, waterfront pavilions, and trophy penthouses available
           for private acquisition and long-term lease.
-        </p>
-      </div>
+        </StaggerItem>
+      </StaggerContainer>
 
       {/* Main Filter Bar */}
-      <div className="mt-8 p-4 sm:p-5 rounded-2xl bg-white border border-[#D8C3AC] shadow-md shadow-[#2D1A0B]/6">
+      <FadeIn delay={0.3} threshold={0.05} className="mt-8 p-4 sm:p-5 rounded-2xl bg-white border border-[#CFCCAE] shadow-md shadow-[#2B2612]/6">
         {/* Top Controls: Buy/Rent tabs, search input, reset, grid/list */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#D8C3AC]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#CFCCAE]">
           {/* Buy / Rent / All Segment */}
-          <div className="inline-flex p-1 rounded-full bg-[#FAF7F2] border border-[#D8C3AC] self-start">
+          <div className="inline-flex p-1 rounded-full bg-[#F8F7F0] border border-[#CFCCAE] self-start">
             {(["All", "Buy", "Rent"] as const).map((type) => (
               <button
                 key={type}
                 type="button"
                 onClick={() => handleListingTypeChange(type)}
-                className={`px-4 sm:px-5 py-1.5 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+                className={`px-4 sm:px-5 py-2 sm:py-1.5 rounded-full text-xs uppercase tracking-wider font-semibold transition-all cursor-pointer ${
                   filters.listingType === type
-                    ? "bg-[#7F4F24] text-white shadow-md shadow-[#7F4F24]/20"
-                    : "text-[#2D2018] hover:text-[#120C08]"
+                    ? "bg-[#5A5734] text-white shadow-md shadow-[#5A5734]/20"
+                    : "text-[#3E3A1F] hover:text-[#1E1700]"
                 }`}
               >
                 {type === "All" ? "All Formats" : type === "Buy" ? "Acquisition" : "Lease"}
@@ -102,21 +105,21 @@ export function PropertyListContent() {
           </div>
 
           {/* Search Input */}
-          <div className="flex-1 max-w-md">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#D8C3AC] focus-within:border-[#7F4F24] transition-colors">
-              <Search className="w-4 h-4 text-[#7F4F24] shrink-0" />
+          <div className="flex-1 w-full lg:max-w-md">
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#F8F7F0] border border-[#CFCCAE] focus-within:border-[#5A5734] transition-colors">
+              <Search className="w-4 h-4 text-[#5A5734] shrink-0" />
               <input
                 type="text"
                 value={filters.location}
                 onChange={(e) => setFilters((prev) => ({ ...prev, location: e.target.value }))}
                 placeholder="Search city, architect, country..."
-                className="w-full bg-transparent text-xs sm:text-sm text-[#120C08] font-medium placeholder-[#7F6B60] focus:outline-none"
+                className="w-full bg-transparent text-xs sm:text-sm text-[#1E1700] font-medium placeholder-[#7F6B60] focus:outline-none"
               />
               {filters.location && (
                 <button
                   type="button"
                   onClick={() => setFilters((prev) => ({ ...prev, location: "" }))}
-                  className="text-xs text-[#7F4F24] hover:text-[#120C08] font-bold cursor-pointer"
+                  className="text-xs text-[#5A5734] hover:text-[#1E1700] font-bold cursor-pointer"
                 >
                   Clear
                 </button>
@@ -130,22 +133,22 @@ export function PropertyListContent() {
               type="button"
               onClick={resetFilters}
               title="Reset all filters"
-              className="px-3 py-2 rounded-xl border border-[#8C5A30]/20 text-[#7F4F24] hover:text-white hover:bg-[#7F4F24] text-xs flex items-center gap-1.5 transition-colors cursor-pointer font-semibold"
+              className="px-3 py-2 rounded-xl border border-[#6B6840]/20 text-[#5A5734] hover:text-white hover:bg-[#5A5734] text-xs flex items-center gap-1.5 transition-colors cursor-pointer font-semibold"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
             </button>
 
             {/* Grid vs List View */}
-            <div className="inline-flex p-1 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20">
+            <div className="inline-flex p-1 rounded-xl bg-[#F8F7F0] border border-[#6B6840]/20">
               <button
                 type="button"
                 onClick={() => setFilters((prev) => ({ ...prev, viewMode: "grid" }))}
                 aria-label="Grid view"
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                   filters.viewMode === "grid"
-                    ? "bg-[#7F4F24] text-white"
-                    : "text-[#6B5B51] hover:text-[#241810]"
+                    ? "bg-[#5A5734] text-white"
+                    : "text-[#6F6C55] hover:text-[#2B2612]"
                 }`}
               >
                 <Grid className="w-4 h-4" />
@@ -156,8 +159,8 @@ export function PropertyListContent() {
                 aria-label="List view"
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                   filters.viewMode === "list"
-                    ? "bg-[#7F4F24] text-white"
-                    : "text-[#6B5B51] hover:text-[#241810]"
+                    ? "bg-[#5A5734] text-white"
+                    : "text-[#6F6C55] hover:text-[#2B2612]"
                 }`}
               >
                 <List className="w-4 h-4" />
@@ -170,13 +173,13 @@ export function PropertyListContent() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
           {/* Category */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#5A5734] font-semibold mb-1">
               Typology
             </label>
             <select
               value={filters.category}
               onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value }))}
-              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#241810] focus:outline-none focus:border-[#7F4F24] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#F8F7F0] border border-[#6B6840]/20 text-xs text-[#2B2612] focus:outline-none focus:border-[#5A5734] cursor-pointer"
             >
               <option value="All">All Categories</option>
               <option value="Luxury Villa">Luxury Villa</option>
@@ -189,13 +192,13 @@ export function PropertyListContent() {
 
           {/* Min Price */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#5A5734] font-semibold mb-1">
               Minimum Price
             </label>
             <select
               value={filters.minPrice}
               onChange={(e) => setFilters((prev) => ({ ...prev, minPrice: Number(e.target.value) }))}
-              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#241810] focus:outline-none focus:border-[#7F4F24] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#F8F7F0] border border-[#6B6840]/20 text-xs text-[#2B2612] focus:outline-none focus:border-[#5A5734] cursor-pointer"
             >
               <option value={0}>No Minimum</option>
               <option value={20000000}>$20,000,000+</option>
@@ -206,7 +209,7 @@ export function PropertyListContent() {
 
           {/* Bedrooms */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#5A5734] font-semibold mb-1">
               Bedrooms
             </label>
             <select
@@ -217,7 +220,7 @@ export function PropertyListContent() {
                   bedrooms: e.target.value === "All" ? "All" : Number(e.target.value),
                 }))
               }
-              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#241810] focus:outline-none focus:border-[#7F4F24] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#F8F7F0] border border-[#6B6840]/20 text-xs text-[#2B2612] focus:outline-none focus:border-[#5A5734] cursor-pointer"
             >
               <option value="All">Any Bedrooms</option>
               <option value={4}>4+ Bedrooms</option>
@@ -229,7 +232,7 @@ export function PropertyListContent() {
 
           {/* Sorting */}
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-[#7F4F24] font-semibold mb-1">
+            <label className="block text-[10px] uppercase tracking-wider text-[#5A5734] font-semibold mb-1">
               Sort By
             </label>
             <select
@@ -237,7 +240,7 @@ export function PropertyListContent() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, sortBy: e.target.value as FilterState["sortBy"] }))
               }
-              className="w-full px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#8C5A30]/20 text-xs text-[#7F4F24] font-semibold focus:outline-none focus:border-[#7F4F24] cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-[#F8F7F0] border border-[#6B6840]/20 text-xs text-[#5A5734] font-semibold focus:outline-none focus:border-[#5A5734] cursor-pointer"
             >
               <option value="featured">Curated (Featured)</option>
               <option value="price-desc">Price: Highest First</option>
@@ -247,18 +250,18 @@ export function PropertyListContent() {
             </select>
           </div>
         </div>
-      </div>
+      </FadeIn>
 
       {/* Results Header */}
-      <div className="mt-8 flex items-center justify-between text-xs text-zinc-400">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-2 text-xs text-[#A9A68A]">
         <div>
-          Showing <span className="font-semibold text-white">{filteredListings.length}</span>{" "}
+          Showing <span className="font-semibold text-[#1E1700]">{filteredListings.length}</span>{" "}
           {filteredListings.length === 1 ? "residence" : "exceptional residences"}
         </div>
         {filters.category !== "All" && (
           <div className="flex items-center gap-1.5">
-            <span className="text-zinc-500">Filtered by:</span>
-            <span className="text-[#c5a880] font-medium">{filters.category}</span>
+            <span className="text-[#8A876A]">Filtered by:</span>
+            <span className="text-[#BCB893] font-medium">{filters.category}</span>
           </div>
         )}
       </div>
@@ -272,29 +275,29 @@ export function PropertyListContent() {
               : "flex flex-col space-y-6"
           }`}
         >
-          {filteredListings.slice(0, visibleCount).map((property) => (
-            <div key={property.id}>
+          {filteredListings.slice(0, visibleCount).map((property, i) => (
+            <FadeIn key={property.id} distance={36} duration={0.8} threshold={0.15} delay={filters.viewMode === "grid" ? (i % 3) * 0.1 : 0}>
               <PropertyCard
                 property={property}
                 aspectRatio={filters.viewMode === "list" ? "aspect-[16/9] md:aspect-[21/9]" : "aspect-[4/3]"}
               />
-            </div>
+            </FadeIn>
           ))}
         </div>
       ) : (
         /* Empty State */
-        <div className="mt-16 py-16 text-center rounded-3xl bg-[#0d0d12] border border-white/10 max-w-lg mx-auto">
-          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto text-zinc-400 mb-4">
+        <div className="mt-12 sm:mt-16 py-12 sm:py-16 px-6 text-center rounded-3xl bg-[#0d0d12] border border-white/10 max-w-lg mx-auto">
+          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto text-[#A9A68A] mb-4">
             <Search className="w-6 h-6" />
           </div>
           <h3 className="text-xl font-serif text-white">No Matching Residences Found</h3>
-          <p className="text-xs text-zinc-400 mt-2 max-w-sm mx-auto leading-relaxed">
+          <p className="text-xs text-[#A9A68A] mt-2 max-w-sm mx-auto leading-relaxed">
             We could not find properties matching your current filter criteria. Try expanding your budget range or clearing search tags.
           </p>
           <button
             type="button"
             onClick={resetFilters}
-            className="mt-6 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#c5a880] text-black hover:bg-[#dfc293] transition-colors cursor-pointer"
+            className="mt-6 px-6 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#BCB893] text-black hover:bg-[#CFCCAE] transition-colors cursor-pointer"
           >
             Reset All Filters
           </button>
@@ -307,7 +310,7 @@ export function PropertyListContent() {
           <button
             type="button"
             onClick={() => setVisibleCount((prev) => prev + 3)}
-            className="px-8 py-3 rounded-full text-xs uppercase tracking-widest font-semibold text-zinc-300 hover:text-white border border-white/15 hover:border-[#c5a880] bg-white/5 transition-colors cursor-pointer"
+            className="px-8 py-3 rounded-full text-xs uppercase tracking-widest font-semibold text-[#C9C7AE] hover:text-white border border-white/15 hover:border-[#BCB893] bg-white/5 transition-colors cursor-pointer"
           >
             Load Additional Residences ({filteredListings.length - visibleCount} Remaining)
           </button>

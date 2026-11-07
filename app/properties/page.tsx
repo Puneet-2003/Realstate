@@ -14,7 +14,7 @@ function PropertyListSkeleton() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-pulse">
       <div className="h-8 bg-white/5 rounded w-48 mb-4" />
-      <div className="h-12 bg-white/5 rounded w-96 mb-8" />
+      <div className="h-12 bg-white/5 rounded w-full max-w-96 mb-8" />
       <div className="h-28 bg-white/5 rounded-2xl mb-10" />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -27,7 +27,7 @@ function PropertyListSkeleton() {
 
 export default function PropertiesPage() {
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#120C08] flex flex-col">
+    <div className="min-h-screen bg-[#F8F7F0] text-[#1E1700] flex flex-col">
       <Navbar />
       <main className="flex-1 py-8 sm:py-12">
         <Suspense fallback={<PropertyListSkeleton />}>

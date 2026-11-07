@@ -156,7 +156,7 @@ export function CinematicScrollGallery({
   return (
     <section
       ref={containerRef}
-      className={cn("relative h-[240vh] w-full bg-[#120C08]", className)}
+      className={cn("relative h-[240vh] w-full bg-[#1E1700]", className)}
     >
       {/* Sticky Fullscreen Viewport */}
       <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between select-none">
@@ -183,20 +183,20 @@ export function CinematicScrollGallery({
             style={{
               opacity: shouldReduceMotion ? 0.8 : bgDarkOverlay,
             }}
-            className="absolute inset-0 bg-gradient-to-b from-black/50 via-[#120C08]/90 to-black will-change-[opacity]"
+            className="absolute inset-0 bg-gradient-to-b from-[#1E1700]/60 via-[#1E1700]/85 to-[#1E1700] will-change-[opacity]"
           />
         </div>
 
         {/* TOP BAR: Brand logo & Call-to-action */}
         <header className="relative z-30 flex items-center justify-between px-6 sm:px-12 pt-8 sm:pt-10">
-          <span className="font-sans font-semibold text-sm sm:text-base tracking-tight text-[#FAF7F2]">
+          <span className="font-serif font-light text-base sm:text-lg tracking-[0.2em] text-[#F4F3EA]">
             {brand}
           </span>
 
           <button
             onClick={onCtaClick}
             type="button"
-            className="px-5 py-2 rounded-full text-xs font-medium text-white bg-black/80 hover:bg-black border border-white/20 backdrop-blur-md transition-all cursor-pointer hover:scale-105"
+            className="px-5 py-2 rounded-full text-xs font-mono uppercase tracking-widest text-[#1E1700] bg-[#9D9970] hover:bg-[#BCB893] transition-all cursor-pointer hover:scale-105 shadow-lg shadow-[#9D9970]/20 font-semibold"
           >
             {ctaText}
           </button>
@@ -204,7 +204,7 @@ export function CinematicScrollGallery({
 
         {/* CENTER STAGE: Morphing Title & Staggered Cards */}
         <div className="relative z-20 flex-1 flex flex-col items-center justify-center px-4 max-w-7xl mx-auto w-full">
-          {/* Main Giant Title ("Nature." / "Sanctuary.") */}
+          {/* Main Giant Title ("Sanctuary.") */}
           <motion.div
             style={{
               y: shouldReduceMotion ? 0 : titleY,
@@ -213,7 +213,7 @@ export function CinematicScrollGallery({
             }}
             className="absolute z-10 text-center will-change-transform"
           >
-            <h1 className="font-sans font-bold text-6xl sm:text-8xl md:text-9xl text-white tracking-tight drop-shadow-2xl">
+            <h1 className="font-serif font-light text-6xl sm:text-8xl md:text-9xl text-[#F4F3EA] tracking-tight drop-shadow-2xl">
               {title}
             </h1>
           </motion.div>
@@ -241,7 +241,7 @@ export function CinematicScrollGallery({
                   style={{
                     y: shouldReduceMotion ? 0 : cardMotionY,
                   }}
-                  className="group relative h-48 sm:h-64 md:h-80 rounded-md overflow-hidden bg-[#18110B] border border-white/10 shadow-2xl transition-transform duration-300 hover:scale-[1.03] will-change-transform"
+                  className="group relative h-48 sm:h-64 md:h-80 rounded-md overflow-hidden bg-[#1E1700] border border-white/10 shadow-2xl transition-transform duration-300 hover:scale-[1.03] will-change-transform"
                 >
                   <Image
                     src={card.image}
@@ -259,7 +259,7 @@ export function CinematicScrollGallery({
                     <span className="font-sans font-extrabold text-4xl sm:text-5xl md:text-6xl text-white/90 drop-shadow-lg tracking-wider">
                       {card.letter}
                     </span>
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-[#DFBD85] opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-1">
+                    <span className="text-[10px] uppercase font-mono tracking-widest text-[#CFCCAE] opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-1">
                       {card.title}
                     </span>
                   </div>
@@ -276,7 +276,7 @@ export function CinematicScrollGallery({
             }}
             className="mt-6 sm:mt-10 max-w-xl text-center px-4 will-change-[transform,opacity]"
           >
-            <p className="text-xs sm:text-sm text-neutral-300 font-normal leading-relaxed drop-shadow-md">
+            <p className="text-xs sm:text-sm text-[#C9C7AE] font-normal leading-relaxed drop-shadow-md">
               {description}
             </p>
           </motion.div>

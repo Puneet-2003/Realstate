@@ -62,7 +62,7 @@ export default async function PropertyDetailPage({
   ).slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#241810] flex flex-col">
+    <div className="min-h-screen bg-[#F8F7F0] text-[#2B2612] flex flex-col">
       <Navbar />
       <main className="flex-1 py-8 sm:py-10">
         <PropertyDetailClient

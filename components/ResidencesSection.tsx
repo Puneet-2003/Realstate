@@ -45,7 +45,7 @@ const RESIDENCES: ResidenceTier[] = [
     headline: "The Crowning Pinnacle of Metropolitan Living",
     description:
       "Full-floor triplex sanctuary with private heated rooftop pool, 360-degree horizon panoramas, and dual private elevator portals.",
-    image: "/sequence/frame-100.jpg",
+    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1600&auto=format&fit=crop",
     features: [
       "Private Rooftop Heated Infinity Pool",
       "Direct High-Speed Keycard Elevator",
@@ -127,7 +127,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
   const [selectedTab, setSelectedTab] = useState<string>(RESIDENCES[0].id);
 
   return (
-    <section id="residences" className="py-24 sm:py-32 bg-[#070709] relative">
+    <section id="residences" className="py-24 sm:py-32 bg-[#140F00] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           {/* Section Header */}
@@ -139,13 +139,13 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
             className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-10 border-b border-white/10"
           >
             <div>
-              <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#C6A76B] mb-3">
+              <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#BCB893] mb-3">
                 <Compass className="w-3.5 h-3.5" />
                 <span>Residential Collections</span>
               </div>
-              <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight leading-[1.1]">
+              <h2 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-white font-light tracking-tight leading-[1.1]">
                 Sanctuaries of <br />
-                <span className="italic font-normal bg-gradient-to-r from-[#FFFFFF] via-[#E8D4A8] to-[#C6A76B] bg-clip-text text-transparent">
+                <span className="italic font-normal bg-gradient-to-r from-[#FFFFFF] via-[#DCDAC2] to-[#BCB893] bg-clip-text text-transparent">
                   Elevated Distinction.
                 </span>
               </h2>
@@ -157,7 +157,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                 <TabsTrigger
                   key={res.id}
                   value={res.id}
-                  className="px-4 sm:px-5 py-2 rounded-full text-xs uppercase tracking-widest font-mono text-white/60 hover:text-white data-[state=active]:bg-[#C6A76B] data-[state=active]:text-black data-[state=active]:font-semibold transition-all shadow-md"
+                  className="px-4 sm:px-5 py-2 rounded-full text-xs uppercase tracking-widest font-mono text-white/60 hover:text-white data-[state=active]:bg-[#BCB893] data-[state=active]:text-black data-[state=active]:font-semibold transition-all shadow-md"
                 >
                   {res.name.replace("The ", "")}
                 </TabsTrigger>
@@ -181,7 +181,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                       <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between pointer-events-none">
                         <div>
-                          <span className="text-[10px] font-mono tracking-widest uppercase text-[#C6A76B] bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
+                          <span className="text-[10px] font-mono tracking-widest uppercase text-[#BCB893] bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
                             {res.level}
                           </span>
                           <h3 className="text-2xl sm:text-3xl font-serif text-white mt-2">
@@ -192,7 +192,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                           <span className="text-[10px] font-mono text-white/50 uppercase tracking-widest block">
                             Price
                           </span>
-                          <span className="text-xl sm:text-2xl font-serif text-[#C6A76B] font-light">
+                          <span className="text-xl sm:text-2xl font-serif text-[#BCB893] font-light">
                             {res.price}
                           </span>
                         </div>
@@ -222,7 +222,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                     <div className="flex items-center justify-between pb-5 border-b border-white/10">
                       <div className="flex items-center gap-3 text-xs font-mono text-white/80">
                         <span className="flex items-center gap-1.5">
-                          <Maximize2 className="w-3.5 h-3.5 text-[#C6A76B]" />
+                          <Maximize2 className="w-3.5 h-3.5 text-[#BCB893]" />
                           <span className="text-white font-medium">
                             <SlidingNumber number={res.areaSqFt} thousandSeparator="," />
                           </span>{" "}
@@ -230,7 +230,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1.5">
-                          <Bed className="w-3.5 h-3.5 text-[#C6A76B]" />
+                          <Bed className="w-3.5 h-3.5 text-[#BCB893]" />
                           <span className="text-white font-medium">
                             <SlidingNumber number={res.bedrooms} />
                           </span>{" "}
@@ -238,7 +238,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1.5">
-                          <Bath className="w-3.5 h-3.5 text-[#C6A76B]" />
+                          <Bath className="w-3.5 h-3.5 text-[#BCB893]" />
                           <span className="text-white font-medium">
                             <SlidingNumber number={Math.floor(res.bathrooms)} />
                             {res.bathrooms % 1 !== 0 ? ".5" : ""}
@@ -246,7 +246,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                           Baths
                         </span>
                       </div>
-                      <span className="text-xs font-mono text-[#C6A76B]">{res.ceilingHeight}</span>
+                      <span className="text-xs font-mono text-[#BCB893]">{res.ceilingHeight}</span>
                     </div>
 
                     <h4 className="font-serif text-xl sm:text-2xl text-white font-light mt-5">
@@ -259,12 +259,12 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
 
                     {/* Features List */}
                     <div className="mt-5 space-y-2 border-t border-white/10 pt-5">
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-[#C6A76B] block mb-2">
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-[#BCB893] block mb-2">
                         Residence Appointments
                       </span>
                       {res.features.map((feat) => (
                         <div key={feat} className="flex items-center gap-2.5 text-xs text-white/80">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#C6A76B]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#BCB893]" />
                           <span>{feat}</span>
                         </div>
                       ))}
@@ -275,7 +275,7 @@ export function ResidencesSection({ onOpenBooking }: ResidencesSectionProps) {
                   <div className="mt-8 pt-5 border-t border-white/10 flex items-center gap-3">
                     <RippleButton
                       onClick={onOpenBooking}
-                      className="w-full py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#C6A76B]/20"
+                      className="w-full py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#BCB893] hover:bg-[#CFCCAE] text-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#BCB893]/20"
                     >
                       <RippleButtonRipples color="rgba(255, 255, 255, 0.4)" />
                       <span className="relative z-10 flex items-center gap-2">

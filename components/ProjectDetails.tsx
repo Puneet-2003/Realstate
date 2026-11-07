@@ -26,7 +26,7 @@ export function ProjectDetails() {
   ];
 
   return (
-    <section id="location" className="py-28 sm:py-36 bg-[#070709] relative">
+    <section id="location" className="py-28 sm:py-36 bg-[#140F00] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -37,13 +37,13 @@ export function ProjectDetails() {
           className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-12 border-b border-white/10"
         >
           <div>
-            <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#C6A76B] mb-3">
+            <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[#BCB893] mb-3">
               <Building2 className="w-3.5 h-3.5" />
               <span>Project Architecture &amp; Address</span>
             </div>
-            <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white font-light tracking-tight leading-[1.1]">
+            <h2 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-white font-light tracking-tight leading-[1.1]">
               Location &amp; <br />
-              <span className="italic font-normal text-gradient bg-gradient-to-r from-[#FFFFFF] via-[#E8D4A8] to-[#C6A76B] bg-clip-text text-transparent">
+              <span className="italic font-normal text-gradient bg-gradient-to-r from-[#FFFFFF] via-[#DCDAC2] to-[#BCB893] bg-clip-text text-transparent">
                 Project Telemetry.
               </span>
             </h2>
@@ -65,7 +65,7 @@ export function ProjectDetails() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: idx * 0.05 }}
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className="p-5 sm:p-6 rounded-2xl bg-[#0B0B0F] border border-white/5 hover:border-[#C6A76B]/30 transition-colors flex flex-col justify-between"
+              className="p-5 sm:p-6 rounded-2xl bg-[#0B0B0F] border border-white/5 hover:border-[#BCB893]/30 transition-colors flex flex-col justify-between"
             >
               <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">
                 {item.label}
@@ -74,7 +74,7 @@ export function ProjectDetails() {
                 <span className="text-lg sm:text-xl font-serif text-white block">
                   {item.value}
                 </span>
-                <span className="text-[11px] font-mono text-[#C6A76B] block mt-0.5">
+                <span className="text-[11px] font-mono text-[#BCB893] block mt-0.5">
                   {item.sub}
                 </span>
               </div>
@@ -103,7 +103,7 @@ export function ProjectDetails() {
 
             <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
-                <span className="text-[10px] font-mono tracking-widest uppercase text-[#C6A76B] bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
+                <span className="text-[10px] font-mono tracking-widest uppercase text-[#BCB893] bg-black/60 px-3 py-1 rounded-full backdrop-blur-md">
                   METROPOLITAN PROMENADE
                 </span>
                 <h3 className="text-2xl font-serif text-white mt-2">
@@ -114,7 +114,7 @@ export function ProjectDetails() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono text-[#C6A76B] bg-black/70 px-3 py-1.5 rounded-full border border-[#C6A76B]/30 shrink-0">
+              <div className="flex items-center gap-2 text-xs font-mono text-[#BCB893] bg-black/70 px-3 py-1.5 rounded-full border border-[#BCB893]/30 shrink-0">
                 <MapPin className="w-3.5 h-3.5" />
                 <span>Prime District 01</span>
               </div>
@@ -130,7 +130,7 @@ export function ProjectDetails() {
             className="lg:col-span-5 bg-[#0A0A0E] border border-white/10 rounded-2xl p-6 sm:p-8"
           >
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <span className="text-xs font-mono uppercase tracking-widest text-[#C6A76B]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#BCB893]">
                 Immediate Proximity
               </span>
               <span className="text-[10px] font-mono text-white/40">Transit Times</span>
@@ -144,7 +144,7 @@ export function ProjectDetails() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.35, delay: idx * 0.05 }}
-                  className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between hover:border-[#C6A76B]/30 transition-all"
+                  className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between hover:border-[#BCB893]/30 transition-all"
                 >
                   <div>
                     <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 block">
@@ -154,7 +154,7 @@ export function ProjectDetails() {
                       {landmark.name}
                     </h5>
                   </div>
-                  <span className="text-xs font-mono text-[#C6A76B] font-semibold bg-[#C6A76B]/10 px-2.5 py-1 rounded-md">
+                  <span className="text-xs font-mono text-[#BCB893] font-semibold bg-[#BCB893]/10 px-2.5 py-1 rounded-md">
                     {landmark.time}
                   </span>
                 </motion.div>
@@ -163,10 +163,10 @@ export function ProjectDetails() {
 
             <div className="mt-6 pt-5 border-t border-white/10 flex items-center justify-between text-xs text-white/60">
               <span className="flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-[#C6A76B]" />
+                <Shield className="w-3.5 h-3.5 text-[#BCB893]" />
                 24/7 Gated Security &amp; Biometrics
               </span>
-              <span className="text-[#C6A76B] font-mono">Confidential Visits</span>
+              <span className="text-[#BCB893] font-mono">Confidential Visits</span>
             </div>
           </motion.div>
         </div>

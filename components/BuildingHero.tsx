@@ -10,22 +10,22 @@ interface BuildingHeroProps {
 
 export function BuildingHero({ onExplore, onOpenBooking }: BuildingHeroProps) {
   return (
-    <div className="relative min-h-[90vh] flex flex-col justify-between pt-32 pb-16 px-6 sm:px-12 max-w-7xl mx-auto bg-[#050505]">
+    <div className="relative min-h-[90vh] flex flex-col justify-between pt-32 pb-16 px-6 sm:px-12 max-w-7xl mx-auto bg-[#140F00]">
       {/* Top Tagline */}
-      <div className="flex items-center gap-3 text-xs font-mono tracking-[0.3em] uppercase text-[#C6A76B]">
+      <div className="flex items-center gap-3 text-xs font-mono tracking-[0.3em] uppercase text-[#BCB893]">
         <Sparkles className="w-3.5 h-3.5" />
         <span>One Billionaire's Row • Waterfront Crest</span>
       </div>
 
       {/* Main Hero Typography */}
       <div className="max-w-4xl my-auto">
-        <span className="text-xs sm:text-sm font-mono uppercase tracking-[0.35em] text-[#F5F0E8]/60 block mb-4">
+        <span className="text-xs sm:text-sm font-mono uppercase tracking-[0.35em] text-[#F1EFE3]/60 block mb-4">
           The Flagship Architectural Landmark
         </span>
 
         <h1 className="font-serif text-5xl sm:text-7xl lg:text-8xl text-white font-light tracking-tight leading-[1.02]">
           Architecture <br />
-          <span className="italic font-normal text-gradient bg-gradient-to-r from-[#FFFFFF] via-[#E8D4A8] to-[#C6A76B] bg-clip-text text-transparent">
+          <span className="italic font-normal text-gradient bg-gradient-to-r from-[#FFFFFF] via-[#DCDAC2] to-[#BCB893] bg-clip-text text-transparent">
             Beyond Ordinary.
           </span>
         </h1>
@@ -39,7 +39,7 @@ export function BuildingHero({ onExplore, onOpenBooking }: BuildingHeroProps) {
           <button
             type="button"
             onClick={onExplore}
-            className="group px-8 py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#C6A76B] hover:bg-[#d8be85] text-black shadow-xl shadow-[#C6A76B]/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105"
+            className="group px-8 py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold bg-[#BCB893] hover:bg-[#CFCCAE] text-black shadow-xl shadow-[#BCB893]/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105"
           >
             <span>Begin Architectural Tour</span>
             <ArrowDown className="w-4 h-4 transition-transform group-hover:translate-y-0.5" />
@@ -48,7 +48,7 @@ export function BuildingHero({ onExplore, onOpenBooking }: BuildingHeroProps) {
           <button
             type="button"
             onClick={onOpenBooking}
-            className="px-8 py-3.5 rounded-full text-xs uppercase tracking-widest font-mono text-white/80 hover:text-white border border-white/10 hover:border-[#C6A76B]/50 transition-all backdrop-blur-md cursor-pointer"
+            className="px-8 py-3.5 rounded-full text-xs uppercase tracking-widest font-mono text-white/80 hover:text-white border border-white/10 hover:border-[#BCB893]/50 transition-all backdrop-blur-md cursor-pointer"
           >
             Book a Private Visit
           </button>

@@ -1,565 +1,834 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import Lenis from "lenis";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import { gsap } from "gsap";
 
-const TOTAL_FRAMES = 100;
+/**
+ * Scroll-scrubbed 717-frame cinematic hero.
+ *
+ * Performance architecture (why it is built this way):
+ *
+ * 1. Bounded decoded-memory budget. A 1920×1080 frame is ~8.3 MB once decoded.
+ *    Holding all 717 decoded frames (~5.9 GB) forces the browser to evict and
+ *    synchronously re-decode images inside drawImage(), which is what made
+ *    scrolling degrade progressively as more frames streamed in. Here only the
+ *    compressed bytes (Blob, ~150 KB/frame) are retained for the whole sequence,
+ *    and a sliding window of GPU-ready ImageBitmaps around the scroll position
+ *    is kept within a fixed byte budget. Bitmaps leaving the window are close()d.
+ *
+ * 2. Off-main-thread decoding. createImageBitmap() decodes on a worker pool at
+ *    native size (~3x faster than a resampled decode), so drawImage() never
+ *    decodes. Decodes are led by scroll velocity and ordered coarse-to-fine
+ *    (every 8th → 4th → 2nd → every frame) so the image tracks the scroll
+ *    position even when the user scrolls faster than frames can be decoded.
+ *
+ * 3. Resident low-res keyframes. Every 4th frame (6th on touch) is also kept
+ *    as a small bitmap that is never evicted, so a fast flick always has an
+ *    image within ~2 frames to show instead of freezing on a stale frame.
+ *
+ * 4. One frame clock. Rendering runs on the same gsap ticker that drives Lenis
+ *    (Lenis is prioritized, so scroll is updated before we read it), instead of
+ *    a second Framer Motion scroll listener + spring on a separate rAF loop.
+ *    The canvas is only repainted when the scroll position actually changes.
+ *
+ * 5. Allocation-free hot path. No per-frame arrays, queues, or closures.
+ */
+
+const TOTAL_FRAMES = 717;
+// Bump after regenerating tiers with `node scripts/optimize-frames.mjs`.
+const CACHE_VERSION = "tiers_v1";
 const MAX_CONCURRENT_FETCHES = 6;
+// The tiny "lo" keyframes get their own lane so they are never stuck behind
+// full-size downloads on a cold (first-visit) cache.
+const MAX_CONCURRENT_KF_FETCHES = 4;
+// Use the 1920px tier only when the canvas actually needs more than ~1280px.
+const HD_TIER_ABOVE_SCALE = 0.68;
+// Below this cover scale, decode pre-shrunk bitmaps to save memory.
+const RESIZE_DECODE_BELOW_SCALE = 0.6;
+// ---- Feel tuning ----
+// Scroll distance the 717 frames are spread over. Taller = slower animation
+// per wheel step / swipe.
+const HERO_SCROLL_HEIGHT = "900vh";
+// Glide time constant: how long the image takes to catch up with the scroll.
+// Higher = slower, softer motion (~3x this value to fully settle).
+const FRAME_GLIDE_MS = 260;
+// After this long without scroll input, settle onto the nearest whole frame.
+const SETTLE_IDLE_MS = 120;
 
-type FrameSource = HTMLImageElement;
+// Typical decode latency expressed in display ticks, used to lead decodes.
+const DECODE_LEAD_TICKS = 4;
+// Max canvas backing-store pixels (native frame resolution).
+const MAX_CANVAS_PIXELS = 1920 * 1080;
+
+// Native source dimensions of the frame renders.
+const NATIVE_W = 1920;
+const NATIVE_H = 1080;
+
+// Frame load status
+const ST_IDLE = 0;
+const ST_FETCHING = 1;
+const ST_FETCHED = 2;
+const ST_FAILED = 3;
 
 interface HeroSectionProps {
   onOpenBooking?: () => void;
 }
 
+type FrameBitmap = ImageBitmap | HTMLImageElement;
+
+type FrameTier = "lo" | "md" | "hd";
+
+/** Size-tiered, re-encoded frames (see scripts/optimize-frames.mjs). */
+const framePath = (index: number, tier: FrameTier) =>
+  `/frames/${tier}/${String(index + 1).padStart(4, "0")}.webp?v=${CACHE_VERSION}`;
+/** Original full-quality render, used only if a tiered file is missing. */
+const fallbackFramePath = (index: number) =>
+  `/frames/${String(index + 1).padStart(4, "0")}.webp?v=${CACHE_VERSION}`;
+
+const bitmapW = (b: FrameBitmap) => ("naturalWidth" in b ? b.naturalWidth : b.width);
+const bitmapH = (b: FrameBitmap) => ("naturalHeight" in b ? b.naturalHeight : b.height);
+const releaseBitmap = (b: FrameBitmap | null) => {
+  if (b && "close" in b) b.close();
+};
+
+/**
+ * Off-main-thread decode. Native-size decode is ~3x faster than a resampled
+ * one (the GPU scales for free in drawImage), so resizing is only used when
+ * the canvas is far smaller than the source and memory savings matter.
+ */
+async function decodeBlob(
+  blob: Blob,
+  width: number,
+  height: number,
+  resize: boolean
+): Promise<FrameBitmap> {
+  if (typeof createImageBitmap === "function") {
+    if (!resize) return createImageBitmap(blob);
+    try {
+      return await createImageBitmap(blob, {
+        resizeWidth: width,
+        resizeHeight: height,
+        resizeQuality: "medium",
+      });
+    } catch {
+      // Older engines without resize options
+      return await createImageBitmap(blob);
+    }
+  }
+  // Legacy fallback
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ---- Story overlays -----------------------------------------------------
+// Business introduction shown over the walkthrough. `start`/`end` are hero
+// scroll progress (0–1) over which a chapter is fully visible; it fades in
+// and out over OVERLAY_FADE on either side.
+interface HeroChapter {
+  eyebrow: string;
+  title: string;
+  accent?: string;
+  body: string;
+  start: number;
+  end: number;
+  cta?: string;
+}
+
+const HERO_CHAPTERS: HeroChapter[] = [
+  {
+    eyebrow: "Aurelia & Co. · Private Real Estate Advisory",
+    title: "Extraordinary homes,",
+    accent: "privately represented.",
+    body: "For nearly two decades we have guided families, founders and collectors to the world's most exceptional residences — quietly, and entirely on their terms.",
+    start: 0,
+    end: 0.14,
+    cta: "Book a Private Consultation",
+  },
+  {
+    eyebrow: "Established 2008",
+    title: "Eighteen years of",
+    accent: "private stewardship.",
+    body: "A principal-led practice built on discretion, deep market knowledge and long-standing relationships from Beverly Hills to London.",
+    start: 0.2,
+    end: 0.34,
+  },
+  {
+    eyebrow: "Proven Track Record",
+    title: "1,450+ trophy estates.",
+    accent: "$4.2 billion closed.",
+    body: "From architectural villas to sky penthouses, every acquisition and sale handled with the same precision and care.",
+    start: 0.4,
+    end: 0.54,
+  },
+  {
+    eyebrow: "Off-Market Access",
+    title: "The finest homes",
+    accent: "rarely reach the market.",
+    body: "Our private network brings you pocket listings and off-market opportunities long before they are ever made public.",
+    start: 0.6,
+    end: 0.74,
+  },
+  {
+    eyebrow: "Your Next Address",
+    title: "Begins with",
+    accent: "a conversation.",
+    body: "Arrange a private viewing or a confidential consultation with our principal advisor.",
+    start: 0.82,
+    end: 1,
+    cta: "Schedule a Private Viewing",
+  },
+];
+const OVERLAY_FADE = 0.045;
+const OVERLAY_DRIFT_PX = 28;
+
 export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-
-  // Hardware-Accelerated Dual-Canvas Cross-Fader
-  const canvasRefA = useRef<HTMLCanvasElement>(null);
-  const canvasRefB = useRef<HTMLCanvasElement>(null);
-  const lastDrawnFloorRef = useRef<number>(-1);
-  const lastDrawnCeilRef = useRef<number>(-1);
-
-  // Direct DOM refs (zero React re-renders on scroll loop)
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
-  const frameCounterRef = useRef<HTMLSpanElement>(null);
+  const chapterRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Discrete UI States
-  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-
-  // Telemetry & animation refs
-  const isAutoPlayingRef = useRef<boolean>(false);
-  const framesCacheRef = useRef<(FrameSource | null)[]>(new Array(TOTAL_FRAMES).fill(null));
-  const frameStatusRef = useRef<Uint8Array>(new Uint8Array(TOTAL_FRAMES)); // 0: idle, 1: loading, 2: ready, 3: failed
-  const frameLastUsedRef = useRef<number[]>(new Array(TOTAL_FRAMES).fill(0));
-  const activeFetchesRef = useRef<number>(0);
-  const currentRenderedFrameRef = useRef<number>(0);
-  const targetFrameRef = useRef<number>(0);
-  const lenisRef = useRef<Lenis | null>(null);
-  const isMountedRef = useRef<boolean>(true);
-
-  // Audio Context Ref
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const droneNodesRef = useRef<{ osc1: OscillatorNode; osc2: OscillatorNode; gain: GainNode } | null>(null);
-
-  // Helper to resolve frame path: /sequence/frame-001.webp -> frame-100.webp
-  const getFramePath = useCallback((index: number, ext: "webp" | "jpg" = "webp") => {
-    const pad = String(index + 1).padStart(3, "0");
-    return `/sequence/frame-${pad}.${ext}`;
-  }, []);
-
-  // Hardware-accelerated canvas paint with object-fit: cover
-  const drawFrameToCanvas = useCallback((canvas: HTMLCanvasElement | null, frameIndex: number) => {
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
-    if (canvasWidth === 0 || canvasHeight === 0) return;
-
-    const clampedIndex = Math.max(0, Math.min(TOTAL_FRAMES - 1, frameIndex));
-    let frameSource = framesCacheRef.current[clampedIndex];
-
-    // Fallback to nearest loaded frame if current frame is decoding
-    if (!frameSource) {
-      for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
-        const prev = clampedIndex - offset;
-        if (prev >= 0 && framesCacheRef.current[prev]) {
-          frameSource = framesCacheRef.current[prev];
-          break;
-        }
-        const next = clampedIndex + offset;
-        if (next < TOTAL_FRAMES && framesCacheRef.current[next]) {
-          frameSource = framesCacheRef.current[next];
-          break;
-        }
-      }
-    }
-
-    if (!frameSource) return;
-
-    const imgWidth = frameSource.naturalWidth || 1920;
-    const imgHeight = frameSource.naturalHeight || 1080;
-
-    const scale = Math.max(canvasWidth / imgWidth, canvasHeight / imgHeight);
-    const destWidth = imgWidth * scale;
-    const destHeight = imgHeight * scale;
-    const destX = (canvasWidth - destWidth) * 0.5;
-    const destY = (canvasHeight - destHeight) * 0.5;
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(frameSource, 0, 0, imgWidth, imgHeight, destX, destY, destWidth, destHeight);
-
-    frameLastUsedRef.current[clampedIndex] = Date.now();
-  }, []);
-
-  // Continuous S-curve cross-dissolve across any float frame value [0 .. 99]
-  const renderFrameSequence = useCallback(
-    (val: number) => {
-      const clamped = Math.max(0, Math.min(TOTAL_FRAMES - 1, val));
-      const floorIndex = Math.floor(clamped);
-      const ceilIndex = Math.min(TOTAL_FRAMES - 1, floorIndex + 1);
-      const fraction = clamped - floorIndex;
-
-      if (floorIndex !== lastDrawnFloorRef.current) {
-        drawFrameToCanvas(canvasRefA.current, floorIndex);
-        lastDrawnFloorRef.current = floorIndex;
-      }
-
-      if (ceilIndex !== lastDrawnCeilRef.current) {
-        drawFrameToCanvas(canvasRefB.current, ceilIndex);
-        lastDrawnCeilRef.current = ceilIndex;
-      }
-
-      const smoothFactor = fraction * fraction * (3 - 2 * fraction);
-      if (canvasRefB.current) {
-        canvasRefB.current.style.opacity = String(smoothFactor);
-      }
-
-      if (frameCounterRef.current) {
-        const displayFrame = Math.min(TOTAL_FRAMES, Math.round(clamped) + 1);
-        frameCounterRef.current.textContent = String(displayFrame).padStart(3, "0");
-      }
-    },
-    [drawFrameToCanvas]
-  );
-
-  // Resize canvas to device DPR
-  const resizeCanvas = useCallback(() => {
-    const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
-    const w = viewportRef.current?.clientWidth || window.innerWidth;
-    const h = viewportRef.current?.clientHeight || window.innerHeight;
-
-    [canvasRefA.current, canvasRefB.current].forEach((canvas) => {
-      if (canvas) {
-        if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
-          canvas.width = Math.floor(w * dpr);
-          canvas.height = Math.floor(h * dpr);
-        }
-      }
-    });
-
-    const floor = Math.max(0, lastDrawnFloorRef.current);
-    const ceil = Math.max(0, lastDrawnCeilRef.current);
-    drawFrameToCanvas(canvasRefA.current, floor);
-    drawFrameToCanvas(canvasRefB.current, ceil);
-  }, [drawFrameToCanvas]);
-
-  // Asynchronous frame fetch and decode
-  const loadSingleFrame = useCallback(
-    async (index: number): Promise<boolean> => {
-      if (index < 0 || index >= TOTAL_FRAMES) return false;
-      if (frameStatusRef.current[index] === 2) return true;
-      if (frameStatusRef.current[index] === 1) return true;
-
-      frameStatusRef.current[index] = 1;
-      activeFetchesRef.current += 1;
-
-      try {
-        const webpUrl = getFramePath(index, "webp");
-        const jpgUrl = getFramePath(index, "jpg");
-
-        const img = new Image();
-        img.src = webpUrl;
-
-        const readyImg = await new Promise<HTMLImageElement | null>((resolve) => {
-          img.onload = async () => {
-            if ("decode" in img) {
-              try {
-                await img.decode();
-              } catch {}
-            }
-            resolve(img);
-          };
-          img.onerror = () => {
-            const fallback = new Image();
-            fallback.src = jpgUrl;
-            fallback.onload = async () => {
-              if ("decode" in fallback) {
-                try {
-                  await fallback.decode();
-                } catch {}
-              }
-              resolve(fallback);
-            };
-            fallback.onerror = () => resolve(null);
-          };
-        });
-
-        if (!isMountedRef.current) return false;
-
-        if (readyImg) {
-          framesCacheRef.current[index] = readyImg;
-          frameStatusRef.current[index] = 2;
-          frameLastUsedRef.current[index] = Date.now();
-
-          if (index === 0 && lastDrawnFloorRef.current === -1) {
-            drawFrameToCanvas(canvasRefA.current, 0);
-            lastDrawnFloorRef.current = 0;
-            if (canvasRefB.current) canvasRefB.current.style.opacity = "0";
-          }
-
-          const currentFloor = Math.floor(currentRenderedFrameRef.current);
-          const currentCeil = Math.min(TOTAL_FRAMES - 1, currentFloor + 1);
-          if (index === currentFloor) {
-            drawFrameToCanvas(canvasRefA.current, index);
-            lastDrawnFloorRef.current = index;
-          }
-          if (index === currentCeil) {
-            drawFrameToCanvas(canvasRefB.current, index);
-            lastDrawnCeilRef.current = index;
-          }
-          return true;
-        } else {
-          frameStatusRef.current[index] = 3;
-          return false;
-        }
-      } catch {
-        frameStatusRef.current[index] = 3;
-        return false;
-      } finally {
-        activeFetchesRef.current = Math.max(0, activeFetchesRef.current - 1);
-      }
-    },
-    [getFramePath, drawFrameToCanvas]
-  );
-
-  // Dynamic Priority Scheduler
-  const scheduleQueue = useCallback(() => {
-    if (!isMountedRef.current) return;
-    if (activeFetchesRef.current >= MAX_CONCURRENT_FETCHES) return;
-
-    const currentTarget = Math.round(targetFrameRef.current);
-    const candidates: { index: number; dist: number }[] = [];
-
-    for (let i = 0; i < TOTAL_FRAMES; i++) {
-      const status = frameStatusRef.current[i];
-      if (status === 0 || status === 3) {
-        candidates.push({ index: i, dist: Math.abs(i - currentTarget) });
-      }
-    }
-
-    candidates.sort((a, b) => a.dist - b.dist);
-
-    const needed = MAX_CONCURRENT_FETCHES - activeFetchesRef.current;
-    const toFetch = candidates.slice(0, needed);
-
-    toFetch.forEach((item) => {
-      loadSingleFrame(item.index).then(() => {
-        scheduleQueue();
-      });
-    });
-  }, [loadSingleFrame]);
-
-  // Initial Sequence Burst & Mount Lifecycle
   useEffect(() => {
-    isMountedRef.current = true;
-    resizeCanvas();
+    const container = containerRef.current;
+    const viewport = viewportRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !viewport || !canvas) return;
 
-    const initSequence = async () => {
-      // Fetch & paint hero frame 0 onto Canvas A and frame 1 onto Canvas B
-      await loadSingleFrame(0);
-      if (canvasRefA.current) {
-        drawFrameToCanvas(canvasRefA.current, 0);
-        lastDrawnFloorRef.current = 0;
+    let disposed = false;
+    const abort = new AbortController();
+
+    const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    const decodedBudgetBytes = (isTouch ? 200 : 400) * 1024 * 1024;
+    // createImageBitmap decodes on a worker pool; use the cores we have.
+    const maxDecodes = Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 4) - 2));
+
+    // ---- Frame storage -------------------------------------------------
+    const status = new Uint8Array(TOTAL_FRAMES);
+    const blobs: (Blob | null)[] = new Array(TOTAL_FRAMES).fill(null);
+    const bitmaps: (FrameBitmap | null)[] = new Array(TOTAL_FRAMES).fill(null);
+    const bitmapGen = new Int32Array(TOTAL_FRAMES).fill(-1); // decode-size generation
+    const decoding = new Uint8Array(TOTAL_FRAMES);
+    const decodedIndices = new Set<number>();
+    let activeFetches = 0;
+    let settledFetches = 0;
+    let activeDecodes = 0;
+
+    // Resident low-res keyframes (every KF_STRIDE-th frame, 0.3–0.9 MB each):
+    // a never-evicted fallback so very fast flicks never freeze the image.
+    const KF_STRIDE = isTouch ? 6 : 4;
+    const KF_W = isTouch ? 384 : 640;
+    const KF_H = Math.round((KF_W * NATIVE_H) / NATIVE_W);
+    const keyframes: (FrameBitmap | null)[] = new Array(TOTAL_FRAMES).fill(null);
+    const kfStatus = new Uint8Array(TOTAL_FRAMES);
+    let activeKfFetches = 0;
+    let settledKfFetches = 0;
+    const totalKeyframes = Math.ceil(TOTAL_FRAMES / KF_STRIDE);
+
+    // Full-size tier: chosen once at boot from the canvas size and connection.
+    let tier: FrameTier = "hd";
+
+    // Source frames are fixed 1920×1080 renders.
+    const nativeW = NATIVE_W;
+    const nativeH = NATIVE_H;
+
+    // ---- Canvas & decode sizing ----------------------------------------
+    let ctx: CanvasRenderingContext2D | null = null;
+    let decodeW = NATIVE_W;
+    let decodeH = NATIVE_H;
+    let decodeResize = false;
+    let generation = 0;
+    let windowAhead = 30;
+    let windowBehind = 12;
+
+    // ---- Scroll state --------------------------------------------------
+    let containerTop = 0;
+    let scrollable = 1;
+    let lastScrollY = -1;
+    let currentFrame = 0; // float, frame currently shown (eased)
+    let targetFrame = 0; // float, frame the scroll position asks for
+    let lastScrollChange = 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let center = 0; // integer frame the window is centred on
+    let direction = 1;
+    let velocity = 0; // smoothed |frames per tick|
+    let prevTickFrame = 0;
+    let needsDraw = true;
+    let shownExact = false; // is the exact requested frame (and blend) on screen?
+
+    const computeDecodeSize = () => {
+      const coverScale = Math.max(canvas.width / nativeW, canvas.height / nativeH);
+      const resize = coverScale < RESIZE_DECODE_BELOW_SCALE;
+      const w = resize ? Math.max(1, Math.ceil(nativeW * coverScale)) : nativeW;
+      const h = resize ? Math.max(1, Math.ceil(nativeH * coverScale)) : nativeH;
+      if (w !== decodeW || h !== decodeH) {
+        decodeW = w;
+        decodeH = h;
+        decodeResize = resize;
+        generation++; // existing bitmaps stay drawable but get re-decoded lazily
       }
+      const perFrame = decodeW * decodeH * 4;
+      const maxDecoded = Math.max(12, Math.min(96, Math.floor(decodedBudgetBytes / perFrame)));
+      windowAhead = Math.round(maxDecoded * 0.7);
+      windowBehind = maxDecoded - windowAhead - 1;
+    };
 
-      loadSingleFrame(1).then(() => {
-        if (canvasRefB.current) {
-          drawFrameToCanvas(canvasRefB.current, 1);
-          lastDrawnCeilRef.current = 1;
-        }
-      });
-
-      // Preload remaining frames
-      for (let i = 2; i < TOTAL_FRAMES; i++) {
-        if (i < 15) {
-          loadSingleFrame(i);
-        }
+    const resizeCanvas = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, isTouch ? 1.25 : 1.5);
+      const cssW = viewport.clientWidth || window.innerWidth;
+      const cssH = viewport.clientHeight || window.innerHeight;
+      // Uniform cap keeps the aspect ratio intact (no CSS stretching).
+      const cap = Math.min(1, Math.sqrt(MAX_CANVAS_PIXELS / (cssW * dpr * cssH * dpr)));
+      const w = Math.max(1, Math.floor(cssW * dpr * cap));
+      const h = Math.max(1, Math.floor(cssH * dpr * cap));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        ctx = null; // context state resets on resize
       }
-      scheduleQueue();
+      computeDecodeSize();
+      needsDraw = true;
     };
 
-    initSequence();
-
-    const handleResize = () => {
-      resizeCanvas();
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      isMountedRef.current = false;
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [loadSingleFrame, resizeCanvas, scheduleQueue, drawFrameToCanvas]);
-
-  // Scroll & Journey Animation Loop
-  useEffect(() => {
-    const globalLenis = (window as unknown as { __lenis?: Lenis }).__lenis || null;
-    lenisRef.current = globalLenis;
-
-    let cachedContainerTop = 0;
-    let cachedScrollable = 1;
-
-    const measureBounds = () => {
-      const container = containerRef.current;
-      if (!container) return;
+    const measure = () => {
       const rect = container.getBoundingClientRect();
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      cachedContainerTop = rect.top + scrollTop;
-      const viewH = viewportRef.current?.clientHeight || Math.max(580, window.innerHeight - 104);
-      cachedScrollable = Math.max(1, container.offsetHeight - viewH);
+      containerTop = rect.top + window.scrollY;
+      scrollable = Math.max(1, container.offsetHeight - window.innerHeight);
+      lastScrollY = -1; // force progress recompute
     };
 
-    measureBounds();
+    // ---- Drawing -------------------------------------------------------
+    const getCtx = () => {
+      if (ctx) return ctx;
+      ctx = canvas.getContext("2d", { alpha: false });
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+      }
+      return ctx;
+    };
 
-    const calculateProgress = () => {
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const progress = Math.max(
-        0,
-        Math.min(1, (scrollTop - cachedContainerTop) / cachedScrollable)
-      );
+    const nearestDecoded = (idx: number): number => {
+      if (bitmaps[idx]) return idx;
+      const reach = windowAhead + windowBehind;
+      for (let d = 1; d <= reach; d++) {
+        const a = idx - d;
+        if (a >= 0 && bitmaps[a]) return a;
+        const b = idx + d;
+        if (b < TOTAL_FRAMES && bitmaps[b]) return b;
+      }
+      return -1;
+    };
 
-      targetFrameRef.current = progress * (TOTAL_FRAMES - 1);
+    // Output of resolveSource (kept in closure vars to avoid per-frame objects).
+    let resolvedIdx = -1;
+    let resolvedIsKeyframe = false;
 
-      // Direct GPU transform for bottom progress scrubber
-      if (progressBarRef.current) {
-        progressBarRef.current.style.transform = `scaleX(${progress})`;
+    /**
+     * Best available image for a frame: the exact full-res bitmap, else the
+     * closer of the nearest full-res bitmap and the nearest resident low-res
+     * keyframe. A full-res neighbour one frame away beats a keyframe.
+     */
+    const resolveSource = (idx: number): FrameBitmap | null => {
+      resolvedIsKeyframe = false;
+      const full = nearestDecoded(idx);
+      const fullGap = full < 0 ? Infinity : Math.abs(full - idx);
+      if (fullGap <= 1) {
+        resolvedIdx = full;
+        return bitmaps[full];
+      }
+      const k0 = idx - (idx % KF_STRIDE);
+      let kf = -1;
+      let kfGap = Infinity;
+      for (let k = k0 - KF_STRIDE; k <= k0 + 2 * KF_STRIDE; k += KF_STRIDE) {
+        if (k >= 0 && k < TOTAL_FRAMES && keyframes[k] && Math.abs(k - idx) < kfGap) {
+          kf = k;
+          kfGap = Math.abs(k - idx);
+        }
+      }
+      if (kf >= 0 && kfGap < fullGap) {
+        resolvedIdx = kf;
+        resolvedIsKeyframe = true;
+        return keyframes[kf];
+      }
+      resolvedIdx = full;
+      return full >= 0 ? bitmaps[full] : null;
+    };
+
+    const draw = (frameFloat: number) => {
+      const c = getCtx();
+      if (!c) return;
+
+      const floorIdx = Math.floor(frameFloat);
+      const ceilIdx = Math.min(TOTAL_FRAMES - 1, floorIdx + 1);
+      const fraction = frameFloat - floorIdx;
+
+      let baseIdx = floorIdx;
+      let blendIdx = -1;
+      if (fraction > 0.97 && bitmaps[ceilIdx]) {
+        baseIdx = ceilIdx;
+      } else if (fraction > 0.03 && bitmaps[floorIdx] && bitmaps[ceilIdx] && ceilIdx !== floorIdx) {
+        blendIdx = ceilIdx;
       }
 
-      scheduleQueue();
-    };
+      const base = resolveSource(baseIdx);
+      const resolved = resolvedIdx;
+      if (!base) return; // nothing ready yet; keep last painted image
+      if (resolved !== baseIdx || resolvedIsKeyframe) blendIdx = -1;
 
-    if (globalLenis) {
-      globalLenis.on("scroll", calculateProgress);
-    }
-    window.addEventListener("scroll", calculateProgress, { passive: true });
-    window.addEventListener("resize", measureBounds, { passive: true });
+      const cw = canvas.width;
+      const ch = canvas.height;
+      const scale = Math.max(cw / nativeW, ch / nativeH);
+      const nw = Math.ceil(nativeW * scale);
+      const nh = Math.ceil(nativeH * scale);
+      const nx = Math.round((cw - nw) / 2);
+      const ny = Math.round((ch - nh) / 2);
 
-    const stopAutoTourOnUserGesture = () => {
-      if (isAutoPlayingRef.current) {
-        isAutoPlayingRef.current = false;
-        setIsAutoPlaying(false);
+      c.globalAlpha = 1;
+      c.drawImage(base, nx, ny, nw, nh);
+
+      if (blendIdx >= 0) {
+        c.globalAlpha = fraction;
+        c.drawImage(bitmaps[blendIdx]!, nx, ny, nw, nh);
+        c.globalAlpha = 1;
       }
+
+      // Seamlessly mask bottom-right watermark by cloning a clean patch of the base frame.
+      if (nativeW >= 1900 && nativeH >= 1000) {
+        const s = bitmapW(base) / nativeW;
+        const sy = bitmapH(base) / nativeH;
+        c.drawImage(
+          base,
+          1448 * s,
+          875 * sy,
+          72 * s,
+          65 * sy,
+          nx + (1448 / nativeW) * nw,
+          ny + (942 / nativeH) * nh,
+          Math.ceil((72 / nativeW) * nw),
+          Math.ceil((65 / nativeH) * nh)
+        );
+      }
+      const wantsBlend = fraction > 0.03 && fraction <= 0.97 && ceilIdx !== floorIdx;
+      shownExact = resolved === baseIdx && !resolvedIsKeyframe && (!wantsBlend || blendIdx >= 0);
     };
 
-    window.addEventListener("wheel", stopAutoTourOnUserGesture, { passive: true });
-    window.addEventListener("touchstart", stopAutoTourOnUserGesture, { passive: true });
-    window.addEventListener("keydown", stopAutoTourOnUserGesture, { passive: true });
+    // ---- Decode window management --------------------------------------
+    const inWindow = (idx: number) => {
+      const lo = direction > 0 ? center - windowBehind : center - windowAhead;
+      const hi = direction > 0 ? center + windowAhead : center + windowBehind;
+      return idx >= lo && idx <= hi;
+    };
 
-    let rafId: number;
-    const raf = () => {
-      // Auto-tour continuous playback
-      if (isAutoPlayingRef.current) {
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const currentOffset = scrollTop - cachedContainerTop;
-        const increment = cachedScrollable / (60 * 14);
-        const nextOffset = currentOffset + increment;
+    const evictOutsideWindow = () => {
+      decodedIndices.forEach((idx) => {
+        if (!inWindow(idx)) {
+          releaseBitmap(bitmaps[idx]);
+          bitmaps[idx] = null;
+          bitmapGen[idx] = -1;
+          decodedIndices.delete(idx);
+        }
+      });
+    };
 
-        if (nextOffset >= cachedScrollable) {
-          isAutoPlayingRef.current = false;
-          setIsAutoPlaying(false);
-        } else {
-          const nextScroll = cachedContainerTop + nextOffset;
-          if (globalLenis) {
-            globalLenis.scrollTo(nextScroll, { immediate: true });
-          } else {
-            window.scrollTo({ top: nextScroll });
+    const decodeFrame = (idx: number) => {
+      const blob = blobs[idx];
+      if (!blob) return;
+      decoding[idx] = 1;
+      activeDecodes++;
+      const gen = generation;
+      decodeBlob(blob, decodeW, decodeH, decodeResize)
+        .then((bmp) => {
+          if (disposed) {
+            releaseBitmap(bmp);
+            return;
           }
+          if (!inWindow(idx)) {
+            releaseBitmap(bmp);
+            return;
+          }
+          releaseBitmap(bitmaps[idx]);
+          bitmaps[idx] = bmp;
+          bitmapGen[idx] = gen;
+          decodedIndices.add(idx);
+          // Repaint only if this frame improves what is on screen.
+          if (!shownExact || Math.abs(idx - currentFrame) <= 2) needsDraw = true;
+        })
+        .catch(() => {
+          /* corrupt frame: leave undecoded, nearest-frame fallback covers it */
+        })
+        .finally(() => {
+          decoding[idx] = 0;
+          activeDecodes--;
+          if (!disposed) pumpDecodes();
+        });
+    };
+
+    const needsDecode = (idx: number) =>
+      idx >= 0 &&
+      idx < TOTAL_FRAMES &&
+      status[idx] === ST_FETCHED &&
+      !decoding[idx] &&
+      bitmapGen[idx] !== generation;
+
+    /** Starts a decode if needed; returns false once all decode slots are busy. */
+    const tryDecode = (idx: number) => {
+      if (needsDecode(idx)) decodeFrame(idx);
+      return activeDecodes < maxDecodes;
+    };
+
+    /**
+     * Coarse-to-fine decode order: the frames under the playhead first, then
+     * every 8th, 4th, 2nd and finally every frame ahead in the scroll
+     * direction. When the user scrolls faster than frames can be decoded, the
+     * nearest ready frame is then at most a few frames away instead of the
+     * image freezing on a frame far behind the scroll position.
+     */
+    const pumpDecodes = () => {
+      if (activeDecodes >= maxDecodes) return;
+      // Aim where the playhead will be when the decode lands (~4 ticks out),
+      // otherwise fast scrolling decodes frames that are stale on arrival.
+      const lead = Math.min(windowAhead >> 1, Math.round(velocity * DECODE_LEAD_TICKS));
+      const head = center + direction * lead;
+      if (!tryDecode(head) || !tryDecode(head + direction)) return;
+      if (!tryDecode(head + 2 * direction) || !tryDecode(head - direction)) return;
+      for (let stride = 8; stride >= 1; stride >>= 1) {
+        for (let d = lead + stride; d <= windowAhead; d += stride) {
+          if (!tryDecode(center + direction * d)) return;
+        }
+      }
+      for (let d = lead - 2; d >= 0; d--) {
+        if (!tryDecode(center + direction * d)) return;
+      }
+      for (let d = 2; d <= windowBehind; d++) {
+        if (!tryDecode(center - direction * d)) return;
+      }
+    };
+
+    // ---- Network streaming (compressed bytes only) -----------------------
+    const fetchBlob = async (url: string): Promise<Blob | null> => {
+      const res = await fetch(url, { signal: abort.signal });
+      if (!res.ok) return null;
+      return res.blob();
+    };
+
+    const fetchFrame = (idx: number) => {
+      status[idx] = ST_FETCHING;
+      activeFetches++;
+      fetchBlob(framePath(idx, tier))
+        .catch(() => null)
+        .then((blob) => blob ?? fetchBlob(fallbackFramePath(idx)).catch(() => null))
+        .then((blob) => {
+          if (disposed) return;
+          if (blob) {
+            blobs[idx] = blob;
+            status[idx] = ST_FETCHED;
+            if (inWindow(idx)) pumpDecodes();
+          } else {
+            status[idx] = ST_FAILED;
+          }
+        })
+        .finally(() => {
+          activeFetches--;
+          settledFetches++;
+          if (!disposed) pumpFetches();
+        });
+    };
+
+    const tryFetch = (idx: number) => {
+      if (idx >= 0 && idx < TOTAL_FRAMES && status[idx] === ST_IDLE) fetchFrame(idx);
+      return activeFetches < MAX_CONCURRENT_FETCHES;
+    };
+
+    /**
+     * Fetch priority (nearest-first, biased in scroll direction, no queues):
+     * 1. frames inside the decode window, 2. everything else outward.
+     * Keyframes stream separately from the tiny "lo" tier (pumpKeyframes).
+     */
+    const pumpFetches = () => {
+      if (settledFetches >= TOTAL_FRAMES || activeFetches >= MAX_CONCURRENT_FETCHES) return;
+      for (let d = 0; d <= windowAhead; d++) {
+        if (!tryFetch(center + direction * d)) return;
+        if (d > 0 && d <= windowBehind && !tryFetch(center - direction * d)) return;
+      }
+      for (let d = 0; d < TOTAL_FRAMES; d++) {
+        if (!tryFetch(center + direction * d)) return;
+        if (d > 0 && !tryFetch(center - direction * d)) return;
+      }
+    };
+
+    /**
+     * Resident low-res keyframes come from the ~4 KB "lo" tier on their own
+     * lane, nearest-first. On a cold cache the whole walkthrough becomes
+     * scrubbable within a few hundred KB, instead of waiting on full frames.
+     */
+    const fetchKeyframe = (idx: number) => {
+      kfStatus[idx] = ST_FETCHING;
+      activeKfFetches++;
+      fetchBlob(framePath(idx, "lo"))
+        .catch(() => null)
+        .then((blob) => (blob ? decodeBlob(blob, KF_W, KF_H, true) : null))
+        .then((bmp) => {
+          if (!bmp) {
+            kfStatus[idx] = ST_FAILED;
+            return;
+          }
+          if (disposed) {
+            releaseBitmap(bmp);
+            return;
+          }
+          keyframes[idx] = bmp;
+          kfStatus[idx] = ST_FETCHED;
+          if (!shownExact) needsDraw = true;
+        })
+        .catch(() => {
+          kfStatus[idx] = ST_FAILED;
+        })
+        .finally(() => {
+          activeKfFetches--;
+          settledKfFetches++;
+          if (!disposed) pumpKeyframes();
+        });
+    };
+
+    const pumpKeyframes = () => {
+      if (settledKfFetches >= totalKeyframes) return;
+      const k0 = center - (center % KF_STRIDE);
+      for (let d = 0; d < TOTAL_FRAMES && activeKfFetches < MAX_CONCURRENT_KF_FETCHES; d += KF_STRIDE) {
+        const a = k0 + direction * d;
+        if (a >= 0 && a < TOTAL_FRAMES && kfStatus[a] === ST_IDLE) fetchKeyframe(a);
+        const b = k0 - direction * d;
+        if (d > 0 && activeKfFetches < MAX_CONCURRENT_KF_FETCHES && b >= 0 && b < TOTAL_FRAMES && kfStatus[b] === ST_IDLE) {
+          fetchKeyframe(b);
+        }
+      }
+    };
+
+    // ---- Story overlays: opacity/transform only, written only on change --
+    // Layers stay composited at opacity 0 (no visibility toggling, which would
+    // force re-rasterizing the large type at every chapter transition).
+    const overlayOpacity = new Float32Array(HERO_CHAPTERS.length).fill(-1);
+    const overlayInteractive = new Uint8Array(HERO_CHAPTERS.length).fill(2);
+    const updateOverlays = (p: number) => {
+      for (let i = 0; i < HERO_CHAPTERS.length; i++) {
+        const el = chapterRefs.current[i];
+        if (!el) continue;
+        const ch = HERO_CHAPTERS[i];
+        const fadeIn = Math.min(1, Math.max(0, (p - (ch.start - OVERLAY_FADE)) / OVERLAY_FADE));
+        const fadeOut = Math.min(1, Math.max(0, (ch.end + OVERLAY_FADE - p) / OVERLAY_FADE));
+        const op = ch.start <= 0 ? fadeOut : ch.end >= 1 ? fadeIn : Math.min(fadeIn, fadeOut);
+        if (Math.abs(op - overlayOpacity[i]) < 0.002) continue;
+        overlayOpacity[i] = op;
+        // Drift up while entering, continue upward while leaving.
+        const dy = (1 - op) * OVERLAY_DRIFT_PX * (p < ch.start ? 1 : -1);
+        el.style.opacity = op.toFixed(3);
+        el.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0)`;
+        const interactive = op > 0.6 ? 1 : 0;
+        if (interactive !== overlayInteractive[i]) {
+          overlayInteractive[i] = interactive;
+          el.style.pointerEvents = interactive ? "auto" : "none";
+        }
+      }
+    };
+
+    // ---- Single per-frame tick (shared clock with Lenis) ---------------
+    // `deltaMs` comes from the gsap ticker; called without it (boot) we snap.
+    const tick = (_time?: number, deltaMs?: number) => {
+      velocity = velocity * 0.75 + Math.abs(currentFrame - prevTickFrame) * 0.25;
+      prevTickFrame = currentFrame;
+
+      const now = performance.now();
+      const y = window.scrollY;
+      if (y !== lastScrollY) {
+        lastScrollY = y;
+        lastScrollChange = now;
+        const progress = Math.min(1, Math.max(0, (y - containerTop) / scrollable));
+        targetFrame = progress * (TOTAL_FRAMES - 1);
+      } else if (now - lastScrollChange > SETTLE_IDLE_MS && targetFrame !== Math.round(targetFrame)) {
+        // Scrolling stopped between two frames: glide onto the nearest whole
+        // frame so the cross-fade fades out and a single sharp frame remains
+        // (resting on a blend of two frames looks like ghosting/blur).
+        targetFrame = Math.round(targetFrame);
+      }
+
+      // Slow cinematic glide: the shown frame eases toward the scroll target
+      // (frame-rate independent exponential smoothing), then settles exactly.
+      if (currentFrame !== targetFrame) {
+        const diff = targetFrame - currentFrame;
+        if (deltaMs === undefined || reducedMotion || Math.abs(diff) < 0.002) {
+          currentFrame = targetFrame;
+        } else {
+          const k = 1 - Math.exp(-Math.min(deltaMs, 100) / FRAME_GLIDE_MS);
+          currentFrame += diff * k;
+        }
+        needsDraw = true;
+        const shownProgress = currentFrame / (TOTAL_FRAMES - 1);
+        if (progressBarRef.current) {
+          progressBarRef.current.style.transform = `scaleX(${shownProgress})`;
+        }
+        updateOverlays(shownProgress);
+        const nextCenter = Math.round(currentFrame);
+        if (nextCenter !== center) {
+          direction = nextCenter > center ? 1 : -1;
+          center = nextCenter;
+          evictOutsideWindow();
+          pumpDecodes();
+          pumpFetches();
+          pumpKeyframes();
         }
       }
 
-      // Smooth interpolation for frame cross-dissolve
-      const target = targetFrameRef.current;
-      const diff = target - currentRenderedFrameRef.current;
-      if (Math.abs(diff) > 0.001) {
-        currentRenderedFrameRef.current += diff * 0.18;
-        renderFrameSequence(currentRenderedFrameRef.current);
+      if (needsDraw) {
+        needsDraw = false;
+        draw(currentFrame);
       }
 
-      rafId = requestAnimationFrame(raf);
+      // At rest, make sure the exact full-resolution frame (not a low-res
+      // fallback or a neighbour) gets decoded and painted.
+      if (!shownExact && currentFrame === targetFrame) pumpDecodes();
     };
 
-    rafId = requestAnimationFrame(raf);
+    // ---- Boot -----------------------------------------------------------
+    resizeCanvas();
+    measure();
+
+    // Pick the full-size tier: 1920px only for large canvases on a decent link.
+    {
+      const conn = (navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string };
+      }).connection;
+      const slowLink = !!conn && (conn.saveData === true || /(^|-)(2g|3g)$/.test(conn.effectiveType ?? ""));
+      const coverScale = Math.max(canvas.width / NATIVE_W, canvas.height / NATIVE_H);
+      tier = !slowLink && coverScale > HD_TIER_ABOVE_SCALE ? "hd" : "md";
+    }
+
+    tick(); // establish initial centre from current scroll position
+    updateOverlays(currentFrame / (TOTAL_FRAMES - 1));
+    pumpKeyframes();
+    pumpFetches();
+
+    gsap.ticker.add(tick);
+
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const onResize = () => {
+      measure();
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        resizeCanvas();
+        evictOutsideWindow();
+        pumpDecodes();
+      }, 120);
+    };
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
+    ro?.observe(container);
+    ro?.observe(document.body);
+    window.addEventListener("resize", onResize, { passive: true });
 
     return () => {
-      cancelAnimationFrame(rafId);
-      if (globalLenis) {
-        globalLenis.off("scroll", calculateProgress);
+      disposed = true;
+      abort.abort();
+      gsap.ticker.remove(tick);
+      ro?.disconnect();
+      window.removeEventListener("resize", onResize);
+      if (resizeTimer) clearTimeout(resizeTimer);
+      for (let i = 0; i < TOTAL_FRAMES; i++) {
+        releaseBitmap(bitmaps[i]);
+        releaseBitmap(keyframes[i]);
+        bitmaps[i] = null;
+        keyframes[i] = null;
+        blobs[i] = null;
       }
-      window.removeEventListener("scroll", calculateProgress);
-      window.removeEventListener("resize", measureBounds);
-      window.removeEventListener("wheel", stopAutoTourOnUserGesture);
-      window.removeEventListener("touchstart", stopAutoTourOnUserGesture);
-      window.removeEventListener("keydown", stopAutoTourOnUserGesture);
+      decodedIndices.clear();
     };
-  }, [renderFrameSequence, scheduleQueue]);
-
-  // Auto-Play Tour Toggle
-  const toggleAutoPlay = () => {
-    const next = !isAutoPlaying;
-    setIsAutoPlaying(next);
-    isAutoPlayingRef.current = next;
-
-    if (next && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const containerTop = rect.top + scrollTop;
-      const currentScroll = scrollTop;
-
-      if (currentScroll >= containerTop + containerRef.current.offsetHeight - window.innerHeight - 50) {
-        if (lenisRef.current) {
-          lenisRef.current.scrollTo(containerTop, { duration: 0.8 });
-        } else {
-          window.scrollTo({ top: containerTop, behavior: "smooth" });
-        }
-      }
-    }
-  };
-
-  // Optional Architectural Binaural Soundscape
-  const toggleAudio = () => {
-    if (typeof window === "undefined") return;
-
-    if (!isAudioEnabled) {
-      try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new AudioCtx();
-        audioContextRef.current = ctx;
-
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(0.001, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.04, ctx.currentTime + 3);
-
-        const osc1 = ctx.createOscillator();
-        osc1.type = "sine";
-        osc1.frequency.setValueAtTime(55, ctx.currentTime);
-
-        const osc2 = ctx.createOscillator();
-        osc2.type = "sine";
-        osc2.frequency.setValueAtTime(110, ctx.currentTime);
-
-        osc1.connect(gainNode);
-        osc2.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        osc1.start();
-        osc2.start();
-
-        droneNodesRef.current = { osc1, osc2, gain: gainNode };
-        setIsAudioEnabled(true);
-      } catch {
-        setIsAudioEnabled(false);
-      }
-    } else {
-      if (droneNodesRef.current && audioContextRef.current) {
-        const ctx = audioContextRef.current;
-        droneNodesRef.current.gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1);
-        setTimeout(() => {
-          droneNodesRef.current?.osc1.stop();
-          droneNodesRef.current?.osc2.stop();
-          ctx.close();
-          droneNodesRef.current = null;
-          audioContextRef.current = null;
-        }, 1100);
-      }
-      setIsAudioEnabled(false);
-    }
-  };
+  }, []);
 
   return (
     <section
       ref={containerRef}
       id="hero"
-      className="relative bg-[#18110B] text-[#FAF7F2] w-full"
-      style={{ height: "240vh" }}
+      className="relative bg-[#1E1700] text-[#F4F3EA] w-full"
+      style={{ height: HERO_SCROLL_HEIGHT }}
     >
-      {/* Sticky Viewport Container: Plain Frames Experience (No Overlapping Texts) */}
+      {/* Sticky Viewport Container: Pure Unobstructed Full-Screen Canvas */}
       <div
         ref={viewportRef}
-        className="sticky top-20 w-full h-[calc(100vh-80px)] min-h-[580px] overflow-hidden bg-[#18110B]"
+        className="sticky top-0 w-full h-screen h-svh min-h-[520px] [@media(max-height:500px)]:min-h-0 overflow-hidden bg-[#1E1700]"
       >
-        {/* Continuous Dual-Buffer Hardware-Accelerated Cross-Fader Canvas */}
-        <canvas
-          ref={canvasRefA}
-          className="absolute inset-0 w-full h-full object-cover block z-0 will-change-transform"
-          style={{ opacity: 1 }}
-        />
-        <canvas
-          ref={canvasRefB}
-          className="absolute inset-0 w-full h-full object-cover block z-10 will-change-[opacity]"
-          style={{ opacity: 0 }}
-        />
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
 
-        {/* Subtle Luxury Vignette Overlay */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#18110B]/60 via-transparent to-[#18110B]/40 z-20" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#18110B]/50 via-transparent to-[#18110B]/50 z-20" />
+        {/* Legibility scrims (static gradients: no blur, compositor-cheap) */}
+        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-[#140F00]/80 via-[#140F00]/35 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[85%] sm:h-2/3 z-10 bg-gradient-to-t from-[#140F00]/90 sm:from-[#140F00]/85 via-[#140F00]/40 sm:via-[#140F00]/30 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 z-10 bg-gradient-to-b from-[#140F00]/50 to-transparent" />
 
-        {/* Top-Right Telemetry & Walkthrough Controls */}
-        <div className="absolute top-4 sm:top-6 right-4 sm:right-8 lg:right-10 z-30 flex items-center gap-2.5 sm:gap-3">
-          {/* Auto-Play Tour Button */}
-          <button
-            type="button"
-            onClick={toggleAutoPlay}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono uppercase tracking-wider backdrop-blur-xl transition-all cursor-pointer ${
-              isAutoPlaying
-                ? "bg-[#C89D5C] text-[#18110B] border-[#C89D5C] shadow-lg shadow-[#C89D5C]/30 font-semibold"
-                : "bg-[#18110B]/80 hover:bg-[#18110B] border-[#C89D5C]/30 hover:border-[#DFBD85] text-[#FAF7F2]"
-            }`}
-            title="Toggle automatic smooth cinematic tour"
-          >
-            {isAutoPlaying ? (
-              <>
-                <Pause className="w-3.5 h-3.5 fill-current" />
-                <span className="hidden sm:inline">Pause Tour</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-current text-[#C89D5C]" />
-                <span className="hidden sm:inline">Play Tour</span>
-              </>
-            )}
-          </button>
-
-          {/* Sound Ambience Toggle */}
-          <button
-            type="button"
-            onClick={toggleAudio}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18110B]/80 hover:bg-[#18110B] border border-[#C89D5C]/30 hover:border-[#DFBD85] text-[#FAF7F2] backdrop-blur-xl transition-all cursor-pointer"
-            title="Toggle architectural ambience"
-          >
-            {isAudioEnabled ? (
-              <Volume2 className="w-3.5 h-3.5 text-[#C89D5C]" />
-            ) : (
-              <VolumeX className="w-3.5 h-3.5 text-[#D8C3AC]" />
-            )}
-            <span className="text-[10px] font-mono uppercase tracking-wider hidden sm:inline text-[#EADECF]">
-              {isAudioEnabled ? "Audio On" : "Sound"}
-            </span>
-          </button>
-
-          {/* Frame Telemetry Counter */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18110B]/80 border border-[#C89D5C]/30 backdrop-blur-xl font-mono text-[11px]">
-            <span className="text-white/40">FRAME</span>
-            <span ref={frameCounterRef} className="text-[#DFBD85] font-semibold">
-              001
-            </span>
-            <span className="text-white/30">/ {TOTAL_FRAMES}</span>
-          </div>
+        {/* Business introduction chapters, revealed along the walkthrough */}
+        <div className="absolute inset-0 z-20 pointer-events-none">
+          {HERO_CHAPTERS.map((ch, i) => (
+            <div
+              key={ch.eyebrow}
+              ref={(el) => {
+                chapterRefs.current[i] = el;
+              }}
+              /* Phones/tablets: bottom padding clears the floating menu + WhatsApp buttons;
+                 on short landscape screens the text clears them on the right instead. */
+              className="absolute left-0 bottom-0 w-full px-5 sm:px-12 lg:px-20 pb-[9.5rem] sm:pb-40 lg:pb-24 [@media(max-height:500px)]:pb-6 [@media(max-height:500px)]:pr-24 will-change-[opacity,transform]"
+              style={{
+                opacity: i === 0 ? 1 : 0,
+                pointerEvents: i === 0 ? "auto" : "none",
+              }}
+            >
+              <div className="max-w-2xl">
+                <span className="inline-flex items-center gap-3 font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.3em] text-[#BCB893]">
+                  <span className="h-px w-8 bg-[#BCB893]/70" />
+                  {ch.eyebrow}
+                </span>
+                {i === 0 ? (
+                  <h1 className="mt-4 sm:mt-5 font-serif font-light text-[2.125rem] min-[400px]:text-[2.5rem] leading-[1.08] sm:text-6xl lg:text-[4.25rem] [@media(max-height:500px)]:text-4xl tracking-tight text-[#F4F3EA]">
+                    {ch.title}
+                    {ch.accent && <span className="block italic text-[#BCB893]">{ch.accent}</span>}
+                  </h1>
+                ) : (
+                  <h2 className="mt-4 sm:mt-5 font-serif font-light text-[1.875rem] min-[400px]:text-[2.25rem] leading-[1.08] sm:text-5xl lg:text-6xl [@media(max-height:500px)]:text-3xl tracking-tight text-[#F4F3EA]">
+                    {ch.title}
+                    {ch.accent && <span className="block italic text-[#BCB893]">{ch.accent}</span>}
+                  </h2>
+                )}
+                <p className="mt-4 sm:mt-5 max-w-xl text-sm sm:text-base [@media(max-height:500px)]:hidden font-light leading-relaxed text-[#F4F3EA]/85">
+                  {ch.body}
+                </p>
+                {ch.cta && (
+                  <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3 sm:gap-4">
+                    <button
+                      type="button"
+                      onClick={onOpenBooking}
+                      className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3.5 rounded-full bg-[#BCB893] hover:bg-[#CFCCAE] text-[#1E1700] text-[11px] font-mono font-semibold uppercase tracking-[0.2em] shadow-xl shadow-black/40 transition-colors cursor-pointer"
+                    >
+                      {ch.cta}
+                    </button>
+                    {i === 0 && (
+                      <span className="hidden min-[400px]:inline font-mono text-[10px] uppercase tracking-[0.3em] text-[#F4F3EA]/60">
+                        Scroll to begin the walkthrough
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Bottom Hardware-Accelerated Progress Scrubber Line */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 z-40">
+        {/* Micro-Precision Progress Hairline at the Very Bottom Edge */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 z-40 pointer-events-none">
           <div
             ref={progressBarRef}
-            className="h-full bg-gradient-to-r from-[#8C5A30] via-[#DFBD85] to-[#8C5A30] origin-left will-change-transform"
+            className="h-full bg-gradient-to-r from-[#9D9970]/60 via-[#9D9970] to-[#DCDAC2] origin-left will-change-transform"
             style={{ transform: "scaleX(0)" }}
           />
         </div>

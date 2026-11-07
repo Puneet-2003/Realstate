@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Star, Quote, ChevronLeft, ChevronRight, Sparkles, ShieldCheck } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Star, Quote, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { FadeIn, StaggerContainer, StaggerItem } from "@/components/animation";
 
 export function TestimonialsSection() {
   const testimonials = [
@@ -47,103 +48,112 @@ export function TestimonialsSection() {
   const current = testimonials[activeIdx];
 
   return (
-    <section id="testimonials" className="py-20 sm:py-28 bg-[#18110B] relative overflow-hidden border-b border-[#C89D5C]/20 text-[#FAF7F2]">
-      {/* Warm Ambient Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#7F4F24]/20 rounded-full blur-3xl pointer-events-none" />
+    <section id="testimonials" className="py-24 sm:py-32 bg-[#171200] relative overflow-hidden border-b border-[#D7D4BD]/15 text-[#F4F3EA]">
+      {/* Subtle Gold Ambient Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-[#9D9970]/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#DFBD85] font-semibold mb-2.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#C89D5C]" />
-            <span>Section 09 • Client Testimonials</span>
-          </div>
-          <h2 className="font-serif text-3xl sm:text-5xl text-white font-light tracking-tight">
-            Endorsed by Discerning <br />
-            <span className="italic font-normal text-[#DFBD85]">
-              Global Collectors.
-            </span>
-          </h2>
-          <p className="text-xs sm:text-sm text-[#EADECF] mt-3 font-light">
-            Reflecting on transactions executed with uncompromising privacy, discretion, and fiduciary care.
-          </p>
-        </div>
-
-        {/* Testimonial Card (Image 2 style) */}
-        <div className="relative rounded-3xl bg-[#231811]/90 border border-[#C89D5C]/35 p-8 sm:p-14 shadow-2xl overflow-hidden backdrop-blur-md">
-          {/* Subtle Quote Background Icon */}
-          <div className="absolute top-6 right-8 text-[#C89D5C]/15 pointer-events-none">
-            <Quote className="w-24 h-24 sm:w-32 sm:h-32" />
-          </div>
-
-          <div className="max-w-3xl relative z-10">
-            {/* Stars & Verified Pill */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex items-center gap-1 text-[#C89D5C]">
-                {Array.from({ length: current.rating }).map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" />
-                ))}
-              </div>
-              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider text-[#DFBD85] bg-[#7F4F24]/30 border border-[#C89D5C]/30">
-                <ShieldCheck className="w-3 h-3 text-[#C89D5C]" />
-                <span>Verified Transaction</span>
+        <StaggerContainer className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
+          <StaggerItem className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-[#9D9970] font-mono font-medium mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-[#9D9970]" />
+            <span>Client Endorsements • Sovereign Verification</span>
+          </StaggerItem>
+          <StaggerItem>
+            <h2 className="font-serif text-3xl sm:text-[2.75rem] lg:text-[3.25rem] text-[#F4F3EA] font-light tracking-tight">
+              Endorsed by Discerning <br />
+              <span className="italic text-[#9D9970]">
+                Global Collectors.
               </span>
-            </div>
+            </h2>
+          </StaggerItem>
+          <StaggerItem>
+            <p className="text-xs sm:text-sm text-[#A9A68A] mt-3 font-light leading-relaxed">
+              Reflecting on acquisitions executed with uncompromising privacy, discretion, and fiduciary care.
+            </p>
+          </StaggerItem>
+        </StaggerContainer>
 
-            {/* Testimonial Quote */}
-            <AnimatePresence mode="wait">
-              <motion.blockquote
-                key={current.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.3 }}
-                className="font-serif italic text-xl sm:text-2xl md:text-3xl text-[#FAF7F2] font-light leading-relaxed"
-              >
+        {/* Testimonial Showcase Card */}
+        <FadeIn distance={40} duration={0.9} threshold={0.2} className="relative rounded-3xl bg-white/5 border border-[#D7D4BD]/20 p-6 sm:p-12 md:p-16 backdrop-blur-xl shadow-2xl">
+          <Quote className="w-9 h-9 sm:w-12 sm:h-12 text-[#9D9970]/25 absolute top-5 right-5 sm:top-8 sm:right-8 pointer-events-none" />
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={current.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col justify-between"
+            >
+              {/* Star Rating & Verified Pill */}
+              <div className="flex flex-wrap items-center gap-3 mb-6 pr-10 sm:pr-0">
+                <div className="flex items-center gap-1 text-[#9D9970]">
+                  {[...Array(current.rating)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-current" />
+                  ))}
+                </div>
+                <span className="text-[10px] font-mono tracking-wider uppercase text-[#9D9970] bg-[#9D9970]/15 px-2.5 py-0.5 rounded-full border border-[#9D9970]/30 font-semibold">
+                  Verified Acquisition
+                </span>
+              </div>
+
+              {/* Quote Statement */}
+              <p className="font-serif text-lg min-[400px]:text-xl sm:text-2xl md:text-3xl text-[#F4F3EA] font-light leading-relaxed sm:tracking-wide italic">
                 &ldquo;{current.feedback}&rdquo;
-              </motion.blockquote>
-            </AnimatePresence>
+              </p>
 
-            {/* Author Footer */}
-            <div className="mt-8 pt-6 border-t border-[#C89D5C]/20 flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#C89D5C]/50">
-                  <Image
-                    src={current.avatar}
-                    alt={current.name}
-                    fill
-                    className="object-cover"
-                  />
+              {/* Transaction Specifier */}
+              <p className="mt-4 text-xs font-mono text-[#9D9970] tracking-wider uppercase">
+                {current.property}
+              </p>
+
+              {/* Author Info */}
+              <div className="mt-8 pt-6 border-t border-[#D7D4BD]/15 flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#9D9970]/50 shrink-0">
+                    <Image
+                      src={current.avatar}
+                      alt={current.name}
+                      fill
+                      sizes="48px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg text-[#F4F3EA] font-normal tracking-wide">
+                      {current.name}
+                    </h4>
+                    <span className="text-xs text-[#A9A68A] font-light block">
+                      {current.designation}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-serif text-lg text-white font-normal">{current.name}</h3>
-                  <span className="text-xs text-[#EADECF] block">{current.designation}</span>
-                  <span className="text-[11px] text-[#DFBD85] block font-mono mt-0.5">{current.property}</span>
+
+                {/* Navigation Arrows */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={prev}
+                    className="w-11 h-11 rounded-full bg-white/5 hover:bg-[#9D9970] border border-[#D7D4BD]/25 hover:border-[#9D9970] text-[#F4F3EA] hover:text-[#1E1700] transition-all flex items-center justify-center cursor-pointer"
+                    aria-label="Previous testimonial"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={next}
+                    className="w-11 h-11 rounded-full bg-white/5 hover:bg-[#9D9970] border border-[#D7D4BD]/25 hover:border-[#9D9970] text-[#F4F3EA] hover:text-[#1E1700] transition-all flex items-center justify-center cursor-pointer"
+                    aria-label="Next testimonial"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-
-              {/* Prev / Next Nav Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={prev}
-                  className="p-2.5 rounded-full bg-[#18110B] border border-[#C89D5C]/30 text-[#DFBD85] hover:text-[#18110B] hover:bg-[#C89D5C] transition-all cursor-pointer"
-                  aria-label="Previous testimonial"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={next}
-                  className="p-2.5 rounded-full bg-[#18110B] border border-[#C89D5C]/30 text-[#DFBD85] hover:text-[#18110B] hover:bg-[#C89D5C] transition-all cursor-pointer"
-                  aria-label="Next testimonial"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          </AnimatePresence>
+        </FadeIn>
       </div>
     </section>
   );

@@ -79,7 +79,7 @@ function ModernVillaModel({
       {/* Infinity Pool Plinth */}
       <mesh position={[2.6, 0.02, 1.2]} receiveShadow>
         <boxGeometry args={[3.2, 0.25, 2.4]} />
-        <meshStandardMaterial color="#111116" roughness={0.3} />
+        <meshStandardMaterial color="#1E1700" roughness={0.3} />
       </mesh>
 
       {/* Water Surface with subtle reflection */}
@@ -116,7 +116,7 @@ function ModernVillaModel({
       {/* Warm Interior Lighting */}
       <pointLight
         position={[-0.4, 0.9, 0]}
-        color={isNight ? "#ffb347" : "#ffeedd"}
+        color={isNight ? "#ffb347" : "#F1EFE3"}
         intensity={glowIntensity * 2}
         distance={6}
       />
@@ -157,7 +157,7 @@ function ModernVillaModel({
 
       <pointLight
         position={[-1.2, 2.2, 0.8]}
-        color={isNight ? "#ffaa44" : "#ffeedd"}
+        color={isNight ? "#ffaa44" : "#F1EFE3"}
         intensity={glowIntensity * 1.5}
         distance={4}
       />
@@ -172,7 +172,7 @@ function ModernVillaModel({
       {Array.from({ length: 6 }).map((_, i) => (
         <mesh key={`louver-${i}`} position={[1.4 + i * 0.25, 1.6, 0.2]}>
           <boxGeometry args={[0.08, 0.08, 2.8]} />
-          <meshStandardMaterial color="#c5a880" metalness={0.7} roughness={0.3} />
+          <meshStandardMaterial color="#BCB893" metalness={0.7} roughness={0.3} />
         </mesh>
       ))}
 
@@ -205,8 +205,8 @@ function ModernVillaModel({
               <mesh onClick={() => onSelectHotspot(spot.id)}>
                 <sphereGeometry args={[0.16, 16, 16]} />
                 <meshStandardMaterial
-                  color={isSelected ? "#d4af37" : "#ffffff"}
-                  emissive={isSelected ? "#d4af37" : "#c5a880"}
+                  color={isSelected ? "#BCB893" : "#ffffff"}
+                  emissive={isSelected ? "#BCB893" : "#BCB893"}
                   emissiveIntensity={isSelected ? 2 : 1}
                 />
               </mesh>
@@ -280,7 +280,7 @@ export default function ArchitecturalCanvas({
 
   if (!hasWebGL) {
     return (
-      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 to-black ${className}`}>
+      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1E1700] to-black ${className}`}>
         <Image
           src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?q=80&w=1600&auto=format&fit=crop"
           alt="Architectural Villa"
@@ -290,7 +290,7 @@ export default function ArchitecturalCanvas({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex items-end p-8">
           <div>
-            <span className="text-[#c5a880] text-xs uppercase tracking-widest font-semibold">3D Architectural Rendering</span>
+            <span className="text-[#BCB893] text-xs uppercase tracking-widest font-semibold">3D Architectural Rendering</span>
             <h3 className="text-2xl font-serif text-white mt-1">The Glass Pavilion Cantilever</h3>
           </div>
         </div>
@@ -299,7 +299,7 @@ export default function ArchitecturalCanvas({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-[#09090d] select-none ${className}`}>
+    <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-[#171200] select-none ${className}`}>
       {/* 3D Canvas */}
       <Canvas
         camera={{ position: [5.5, 3.8, 6.5], fov: 42 }}
@@ -330,25 +330,25 @@ export default function ArchitecturalCanvas({
 
       {/* Overlay Badge */}
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs">
-        <Sparkles className="w-3.5 h-3.5 text-[#c5a880]" />
-        <span className="text-zinc-200 font-medium">Interactive 3D Architectural Model</span>
+        <Sparkles className="w-3.5 h-3.5 text-[#BCB893]" />
+        <span className="text-[#DCDAC2] font-medium">Interactive 3D Architectural Model</span>
         <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
       </div>
 
       {/* Selected Hotspot Drawer */}
       {activeSpotData && (
-        <div className="absolute bottom-4 left-4 right-4 md:right-auto md:max-w-sm z-10 p-4 rounded-xl bg-black/80 backdrop-blur-xl border border-[#c5a880]/30 shadow-2xl transition-all duration-300">
+        <div className="absolute bottom-4 left-4 right-4 md:right-auto md:max-w-sm z-10 p-4 rounded-xl bg-black/80 backdrop-blur-xl border border-[#BCB893]/30 shadow-2xl transition-all duration-300">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs uppercase tracking-wider text-[#c5a880] font-semibold">Spatial Highlight</span>
+            <span className="text-xs uppercase tracking-wider text-[#BCB893] font-semibold">Spatial Highlight</span>
             <button
               onClick={() => setSelectedHotspot(null)}
-              className="text-zinc-400 hover:text-white text-xs underline cursor-pointer"
+              className="text-[#A9A68A] hover:text-white text-xs underline cursor-pointer"
             >
               Reset View
             </button>
           </div>
           <h4 className="text-lg font-serif text-white">{activeSpotData.name}</h4>
-          <p className="text-xs text-zinc-300 mt-1 leading-relaxed">{activeSpotData.description}</p>
+          <p className="text-xs text-[#C9C7AE] mt-1 leading-relaxed">{activeSpotData.description}</p>
         </div>
       )}
 
@@ -361,8 +361,8 @@ export default function ArchitecturalCanvas({
             onClick={() => handleSelectHotspot(spot.id)}
             className={`px-2.5 py-1 rounded-full text-[11px] font-mono tracking-wider transition-all backdrop-blur-md cursor-pointer ${
               selectedHotspot === spot.id
-                ? "bg-[#c5a880] text-black font-semibold shadow-md"
-                : "bg-black/70 text-zinc-300 border border-white/10 hover:border-[#c5a880]"
+                ? "bg-[#BCB893] text-black font-semibold shadow-md"
+                : "bg-black/70 text-[#C9C7AE] border border-white/10 hover:border-[#BCB893]"
             }`}
           >
             {spot.name}
@@ -379,8 +379,8 @@ export default function ArchitecturalCanvas({
             onClick={() => setLightingMode("day")}
             className={`p-2 rounded-full transition-all cursor-pointer ${
               lightingMode === "day"
-                ? "bg-[#c5a880] text-black"
-                : "text-zinc-400 hover:text-white hover:bg-white/10"
+                ? "bg-[#BCB893] text-black"
+                : "text-[#A9A68A] hover:text-white hover:bg-white/10"
             }`}
           >
             <Sun className="w-4 h-4" />
@@ -391,8 +391,8 @@ export default function ArchitecturalCanvas({
             onClick={() => setLightingMode("sunset")}
             className={`p-2 rounded-full transition-all cursor-pointer ${
               lightingMode === "sunset"
-                ? "bg-[#c5a880] text-black"
-                : "text-zinc-400 hover:text-white hover:bg-white/10"
+                ? "bg-[#BCB893] text-black"
+                : "text-[#A9A68A] hover:text-white hover:bg-white/10"
             }`}
           >
             <Sunset className="w-4 h-4" />
@@ -403,8 +403,8 @@ export default function ArchitecturalCanvas({
             onClick={() => setLightingMode("night")}
             className={`p-2 rounded-full transition-all cursor-pointer ${
               lightingMode === "night"
-                ? "bg-[#c5a880] text-black"
-                : "text-zinc-400 hover:text-white hover:bg-white/10"
+                ? "bg-[#BCB893] text-black"
+                : "text-[#A9A68A] hover:text-white hover:bg-white/10"
             }`}
           >
             <Moon className="w-4 h-4" />
@@ -413,8 +413,8 @@ export default function ArchitecturalCanvas({
       )}
 
       {/* Orbit Helper Cue */}
-      <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/5 text-[11px] text-zinc-400">
-        <RotateCw className="w-3 h-3 text-[#c5a880]" />
+      <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/5 text-[11px] text-[#A9A68A]">
+        <RotateCw className="w-3 h-3 text-[#BCB893]" />
         <span>Drag to orbit • Scroll to zoom</span>
       </div>
     </div>

@@ -14,7 +14,7 @@ export interface SpotlightProps {
  */
 export function Spotlight({
   className,
-  fill = "rgba(200, 157, 92, 0.25)", // Warm gold default matching Aurelia & Co.
+  fill = "rgba(188, 184, 147, 0.25)", // Warm gold default matching Aurelia & Co.
 }: SpotlightProps) {
   return (
     <svg

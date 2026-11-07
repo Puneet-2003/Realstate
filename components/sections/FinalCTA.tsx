@@ -20,12 +20,12 @@ export function FinalCTA() {
             fill
             className="object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#070709] via-[#070709]/80 to-[#070709]/90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#140F00] via-[#140F00]/80 to-[#140F00]/90" />
           <div className="absolute inset-0 cinematic-grid opacity-30" />
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-[#c5a880]/30 text-xs tracking-[0.25em] uppercase text-[#c5a880] mb-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-[#BCB893]/30 text-xs tracking-[0.25em] uppercase text-[#BCB893] mb-6">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Private Advisory &amp; Acquisition</span>
           </div>
@@ -35,7 +35,7 @@ export function FinalCTA() {
             <span className="italic font-normal text-gold-gradient">Starts Here.</span>
           </h2>
 
-          <p className="mt-6 text-base sm:text-lg text-zinc-300 font-light max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-base sm:text-lg text-[#C9C7AE] font-light max-w-2xl mx-auto leading-relaxed">
             Discover a property that reflects the way you want to live. Whether acquiring an off-market
             modernist sanctuary or curating an international real estate portfolio.
           </p>
@@ -43,7 +43,7 @@ export function FinalCTA() {
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/properties"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#c5a880] hover:bg-[#dfc293] transition-all shadow-2xl shadow-[#c5a880]/30 flex items-center justify-center gap-2 group hover:scale-[1.02]"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-full text-xs uppercase tracking-widest font-semibold text-black bg-[#BCB893] hover:bg-[#CFCCAE] transition-all shadow-2xl shadow-[#BCB893]/30 flex items-center justify-center gap-2 group hover:scale-[1.02]"
             >
               <span>Explore Properties</span>
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -52,14 +52,14 @@ export function FinalCTA() {
             <button
               type="button"
               onClick={() => setIsConsultationOpen(true)}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full text-xs uppercase tracking-widest text-white border border-white/20 hover:border-[#c5a880] bg-black/60 backdrop-blur-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:bg-white/10"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-full text-xs uppercase tracking-widest text-white border border-white/20 hover:border-[#BCB893] bg-black/60 backdrop-blur-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:bg-white/10"
             >
-              <PhoneCall className="w-4 h-4 text-[#c5a880]" />
+              <PhoneCall className="w-4 h-4 text-[#BCB893]" />
               <span>Speak With an Advisor</span>
             </button>
           </div>
 
-          <div className="mt-12 flex items-center justify-center gap-6 text-xs text-zinc-400">
+          <div className="mt-12 flex items-center justify-center gap-6 text-xs text-[#A9A68A]">
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               Discretion Guaranteed
