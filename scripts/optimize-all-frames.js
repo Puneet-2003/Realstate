@@ -8,7 +8,7 @@ const dryDir = 'C:/Users/HP/OneDrive/Documents/dry';
 const publicFramesDir = path.resolve(__dirname, '../public/frames');
 const publicSeqDir = path.resolve(__dirname, '../public/sequence');
 
-// Ensureoutput directories exist
+// Ensureoutputdirectories exist
 if (!fs.existsSync(publicFramesDir)) fs.mkdirSync(publicFramesDir, { recursive: true });
 if (!fs.existsSync(publicSeqDir)) fs.mkdirSync(publicSeqDir, { recursive: true });
 
