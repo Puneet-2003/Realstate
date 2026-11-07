@@ -763,13 +763,12 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       >
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
 
-        {/* Legibility scrims (static gradients: no blur, compositor-cheap) */}
-        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-[#140F00]/80 via-[#140F00]/35 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[85%] sm:h-2/3 z-10 bg-gradient-to-t from-[#140F00]/90 sm:from-[#140F00]/85 via-[#140F00]/40 sm:via-[#140F00]/30 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 z-10 bg-gradient-to-b from-[#140F00]/50 to-transparent" />
+        {/* Light, localized legibility scrim: only the bottom-left corner behind the
+            copy is softly shaded so the frames keep their full brightness. */}
+        <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_bottom_left,rgba(20,15,0,0.45)_0%,rgba(20,15,0,0.15)_40%,transparent_65%)]" />
 
         {/* Business introduction chapters, revealed along the walkthrough */}
-        <div className="absolute inset-0 z-20 pointer-events-none">
+        <div className="absolute inset-0 z-20 pointer-events-none [text-shadow:0_1px_2px_rgba(0,0,0,0.55),0_2px_18px_rgba(0,0,0,0.45)]">
           {HERO_CHAPTERS.map((ch, i) => (
             <div
               key={ch.eyebrow}
