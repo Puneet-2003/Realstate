@@ -199,10 +199,33 @@ export function ScrollJourney({ onOpenBooking }: ScrollJourneyProps) {
   const lenisRef = useRef<Lenis | null>(null);
   const isMountedRef = useRef<boolean>(true);
 
-  // Helper to resolve frame path (prefers modern WebP with MozJPEG fallback)
-  const getFramePath = useCallback((index: number, ext: "webp" | "jpg" = "webp") => {
-    const pad = String(index + 1).padStart(3, "0");
-    return `/frames/frame-${pad}.${ext}?v=fry_try_dry_1`;
+  // Helper to resolve frame path from Cloudinary CDN combining fry/try/dry (desktop) or mobile_frames (mobile)
+  const getFramePath = useCallback((index: number, _ext: "webp" | "jpg" = "webp") => {
+    const isMobile =
+      typeof window !== "undefined" &&
+      (window.innerWidth <= 768 || window.innerWidth < window.innerHeight);
+    if (isMobile) {
+      if (index < 239) {
+        const pad = String(index + 1).padStart(4, "0");
+        return `https://res.cloudinary.com/ddelf4odl/image/upload/mobile_frames/1st/hd/${pad}.webp`;
+      } else if (index < 478) {
+        const pad = String(index - 239 + 1).padStart(4, "0");
+        return `https://res.cloudinary.com/ddelf4odl/image/upload/mobile_frames/2nd/hd/${pad}.webp`;
+      } else {
+        const pad = String(index - 478 + 1).padStart(4, "0");
+        return `https://res.cloudinary.com/ddelf4odl/image/upload/mobile_frames/3rd/hd/${pad}.webp`;
+      }
+    }
+    if (index < 239) {
+      const pad = String(index + 1).padStart(4, "0");
+      return `https://res.cloudinary.com/ddelf4odl/image/upload/fry_frames/hd/${pad}.webp`;
+    } else if (index < 478) {
+      const pad = String(index - 239 + 1).padStart(4, "0");
+      return `https://res.cloudinary.com/ddelf4odl/image/upload/try_frames/hd/${pad}.webp`;
+    } else {
+      const pad = String(index - 478 + 1).padStart(4, "0");
+      return `https://res.cloudinary.com/ddelf4odl/image/upload/dry_frames/hd/${pad}.webp`;
+    }
   }, []);
 
   // Hardware-accelerated canvas rendering: instant single-pass draw (zero lag, 120fps lock)

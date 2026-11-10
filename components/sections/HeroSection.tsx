@@ -2,6 +2,11 @@
 
 import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
+import {
+  FlipButton,
+  FlipButtonFront,
+  FlipButtonBack,
+} from "@/components/animate-ui/buttons/flip";
 
 /**
  * Scroll-scrubbed 717-frame cinematic hero.
@@ -35,8 +40,8 @@ import { gsap } from "gsap";
  */
 
 const TOTAL_FRAMES = 717;
-// Bump after regenerating tiers with `node scripts/optimize-frames.mjs`.
-const CACHE_VERSION = "tiers_v1";
+// Bump after regenerating tiers or updating assets
+const CACHE_VERSION = "cloudinary_all_717_v1";
 const MAX_CONCURRENT_FETCHES = 8;
 // The tiny "lo" keyframes get their own lane so they are never stuck behind
 // full-size downloads on a cold (first-visit) cache.
@@ -45,8 +50,9 @@ const MAX_CONCURRENT_KF_FETCHES = 6;
 const HD_TIER_ABOVE_SCALE = 0.68;
 // Decode pre-shrunk bitmaps when the canvas is far smaller than the source.
 const RESIZE_DECODE_BELOW_SCALE = 0.6;
-// Pixel tiers of the re-encoded frames (see scripts/optimize-frames.mjs).
-const TIER_W: Record<FrameTier, number> = { lo: 640, md: 1280, hd: 1920 };
+// Pixel tiers of the re-encoded frames
+const TIER_W_DESKTOP: Record<FrameTier, number> = { lo: 640, md: 1280, hd: 1920 };
+const TIER_W_MOBILE: Record<FrameTier, number> = { lo: 540, md: 1080, hd: 1080 };
 // ---- Feel tuning ----
 // Scroll distance the 717 frames are spread over. Taller = slower animation
 // per wheel step / swipe.
@@ -61,16 +67,12 @@ const SETTLE_IDLE_MS = 140;
 // ---- First-load readiness (drives the branded loading screen) ----
 // Full-resolution frames from the start of the walkthrough that must be
 // downloaded before the site is revealed, so the first scroll is sharp.
-const READY_FULL_FRAMES = 48;
+const READY_FULL_FRAMES = 36;
 
 // Typical decode latency expressed in display ticks, used to lead decodes.
 const DECODE_LEAD_TICKS = 4;
 // Max canvas backing-store pixels (native frame resolution).
 const MAX_CANVAS_PIXELS = 1920 * 1080;
-
-// Native source dimensions of the frame renders.
-const NATIVE_W = 1920;
-const NATIVE_H = 1080;
 
 // Frame load status
 const ST_IDLE = 0;
@@ -86,12 +88,64 @@ type FrameBitmap = ImageBitmap | HTMLImageElement;
 
 type FrameTier = "lo" | "md" | "hd";
 
-/** Size-tiered, re-encoded frames (see scripts/optimize-frames.mjs). */
-const framePath = (index: number, tier: FrameTier) =>
-  `/frames/${tier}/${String(index + 1).padStart(4, "0")}.webp?v=${CACHE_VERSION}`;
-/** Original full-quality render, used only if a tiered file is missing. */
-const fallbackFramePath = (index: number) =>
-  `/frames/${String(index + 1).padStart(4, "0")}.webp?v=${CACHE_VERSION}`;
+const CLOUDINARY_BASE = "https://res.cloudinary.com/ddelf4odl/image/upload";
+
+const checkIsMobile = () =>
+  typeof window !== "undefined" &&
+  (window.innerWidth <= 768 || window.innerWidth < window.innerHeight);
+
+/** Size-tiered frames from Cloudinary: fry/try/dry for desktop, mobile_frames (1st/2nd/3rd) for mobile. */
+const framePath = (index: number, tier: FrameTier, isMobile: boolean = false) => {
+  const folder = tier === "lo" ? "lo" : "hd";
+  if (isMobile) {
+    if (index < 239) {
+      const pad = String(index + 1).padStart(4, "0");
+      return `${CLOUDINARY_BASE}/mobile_frames/1st/${folder}/${pad}.webp`;
+    } else if (index < 478) {
+      const pad = String(index - 239 + 1).padStart(4, "0");
+      return `${CLOUDINARY_BASE}/mobile_frames/2nd/${folder}/${pad}.webp`;
+    } else {
+      const pad = String(index - 478 + 1).padStart(4, "0");
+      return `${CLOUDINARY_BASE}/mobile_frames/3rd/${folder}/${pad}.webp`;
+    }
+  }
+  if (index < 239) {
+    const pad = String(index + 1).padStart(4, "0");
+    return `${CLOUDINARY_BASE}/fry_frames/${folder}/${pad}.webp`;
+  } else if (index < 478) {
+    const pad = String(index - 239 + 1).padStart(4, "0");
+    return `${CLOUDINARY_BASE}/try_frames/${folder}/${pad}.webp`;
+  } else {
+    const pad = String(index - 478 + 1).padStart(4, "0");
+    return `${CLOUDINARY_BASE}/dry_frames/${folder}/${pad}.webp`;
+  }
+};
+
+/** Original full-quality render fallback. */
+const fallbackFramePath = (index: number, isMobile: boolean = false) => {
+  if (isMobile) {
+    if (index < 239) {
+      const pad = String(index + 1).padStart(4, "0");
+      return `${CLOUDINARY_BASE}/mobile_frames/1st/hd/${pad}.webp`;
+    } else if (index < 478) {
+      const pad = String(index - 239 + 1).padStart(4, "0");
+      return `${CLOUDINARY_BASE}/mobile_frames/2nd/hd/${pad}.webp`;
+    } else {
+      const pad = String(index - 478 + 1).padStart(4, "0");
+      return `${CLOUDINARY_BASE}/mobile_frames/3rd/hd/${pad}.webp`;
+    }
+  }
+  if (index < 239) {
+    const pad = String(index + 1).padStart(4, "0");
+    return `${CLOUDINARY_BASE}/fry_frames/hd/${pad}.webp`;
+  } else if (index < 478) {
+    const pad = String(index - 239 + 1).padStart(4, "0");
+    return `${CLOUDINARY_BASE}/try_frames/hd/${pad}.webp`;
+  } else {
+    const pad = String(index - 478 + 1).padStart(4, "0");
+    return `${CLOUDINARY_BASE}/dry_frames/hd/${pad}.webp`;
+  }
+};
 
 const bitmapW = (b: FrameBitmap) => ("naturalWidth" in b ? b.naturalWidth : b.width);
 const bitmapH = (b: FrameBitmap) => ("naturalHeight" in b ? b.naturalHeight : b.height);
@@ -275,9 +329,11 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     // Full-size tier: chosen once at boot from the canvas size and connection.
     let tier: FrameTier = "hd";
 
-    // Source frames are fixed 1920×1080 renders.
-    const nativeW = NATIVE_W;
-    const nativeH = NATIVE_H;
+    const isMobile = checkIsMobile();
+    // Source frame dimensions: 1080x1920 (portrait) for mobile, 1920x1080 (landscape) for desktop
+    const nativeW = isMobile ? 1080 : 1920;
+    const nativeH = isMobile ? 1920 : 1080;
+    const tierW = isMobile ? TIER_W_MOBILE : TIER_W_DESKTOP;
 
     // ---- Canvas & decode sizing ----------------------------------------
     let ctx: CanvasRenderingContext2D | null = null;
@@ -309,7 +365,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let outH = 1;
     let outResize = false;
     const planDecode = (srcW: number) => {
-      const srcH = Math.round((srcW * NATIVE_H) / NATIVE_W);
+      const srcH = Math.round((srcW * nativeH) / nativeW);
       const cropPxW = crop.w * srcW;
       const cropPxH = crop.h * srcH;
       outResize = canvas.width < cropPxW * RESIZE_DECODE_BELOW_SCALE;
@@ -320,9 +376,9 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let lastCanvasW = 0;
     let lastCanvasH = 0;
     const computeDecodeSize = () => {
-      // Cover crop: the part of the 16:9 frame that is actually on screen.
+      // Cover crop: the part of the frame that is actually on screen.
       const aspect = canvas.width / canvas.height;
-      const nativeAspect = NATIVE_W / NATIVE_H;
+      const nativeAspect = nativeW / nativeH;
       const next: Region =
         aspect < nativeAspect
           ? { x: (1 - aspect / nativeAspect) / 2, y: 0, w: aspect / nativeAspect, h: 1 }
@@ -337,7 +393,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       }
       lastCanvasW = canvas.width;
       lastCanvasH = canvas.height;
-      planDecode(TIER_W[tier]);
+      planDecode(tierW[tier]);
       const perFrame = outW * outH * 4;
       const maxDecoded = Math.max(12, Math.min(96, Math.floor(decodedBudgetBytes / perFrame)));
       windowAhead = Math.round(maxDecoded * 0.7);
@@ -471,15 +527,18 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       const c = getCtx();
       if (!c) return;
 
+      const now = performance.now();
+      const isActivelyScrolling = now - lastScrollChange < 60;
+
       const floorIdx = Math.floor(frameFloat);
       const ceilIdx = Math.min(TOTAL_FRAMES - 1, floorIdx + 1);
       const fraction = frameFloat - floorIdx;
 
-      let baseIdx = floorIdx;
+      let baseIdx = isActivelyScrolling ? floorIdx : Math.round(frameFloat);
       let blendIdx = -1;
-      if (fraction > 0.97 && bitmaps[ceilIdx]) {
+      if (isActivelyScrolling && fraction > 0.97 && bitmaps[ceilIdx]) {
         baseIdx = ceilIdx;
-      } else if (fraction > 0.03 && bitmaps[floorIdx] && bitmaps[ceilIdx] && ceilIdx !== floorIdx) {
+      } else if (isActivelyScrolling && fraction > 0.04 && bitmaps[floorIdx] && bitmaps[ceilIdx] && ceilIdx !== floorIdx) {
         blendIdx = ceilIdx;
       }
 
@@ -497,8 +556,10 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         c.globalAlpha = 1;
       }
 
-      maskWatermark(c, base);
-      const wantsBlend = fraction > 0.03 && fraction <= 0.97 && ceilIdx !== floorIdx;
+      if (!isMobile) {
+        maskWatermark(c, base);
+      }
+      const wantsBlend = isActivelyScrolling && fraction > 0.04 && fraction <= 0.97 && ceilIdx !== floorIdx;
       shownExact = resolved === baseIdx && !resolvedIsKeyframe && (!wantsBlend || blendIdx >= 0);
     };
 
@@ -526,9 +587,9 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       decoding[idx] = 1;
       activeDecodes++;
       const gen = generation;
-      const srcW = blobW[idx] || NATIVE_W;
+      const srcW = blobW[idx] || nativeW;
       planDecode(srcW);
-      decodeBlob(blob, srcW, Math.round((srcW * NATIVE_H) / NATIVE_W), crop, outW, outH, outResize)
+      decodeBlob(blob, srcW, Math.round((srcW * nativeH) / nativeW), crop, outW, outH, outResize)
         .then((bmp) => {
           if (disposed) {
             releaseBitmap(bmp);
@@ -606,13 +667,13 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const fetchFrame = (idx: number) => {
       status[idx] = ST_FETCHING;
       activeFetches++;
-      let w = TIER_W[tier];
-      fetchBlob(framePath(idx, tier))
+      let w = tierW[tier];
+      fetchBlob(framePath(idx, tier, isMobile))
         .catch(() => null)
         .then((blob) => {
           if (blob) return blob;
-          w = NATIVE_W; // original full-size render
-          return fetchBlob(fallbackFramePath(idx)).catch(() => null);
+          w = nativeW; // original full-size render
+          return fetchBlob(fallbackFramePath(idx, isMobile)).catch(() => null);
         })
         .then((blob) => {
           if (disposed) return;
@@ -669,8 +730,8 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       kfBusy[idx] = 1;
       activeKfJobs++;
       const g = cropGen;
-      const srcW = TIER_W.lo;
-      const srcH = Math.round((srcW * NATIVE_H) / NATIVE_W);
+      const srcW = tierW.lo;
+      const srcH = Math.round((srcW * nativeH) / nativeW);
       const px = crop.w * srcW * crop.h * srcH;
       const s = px > KF_MAX_PX ? Math.sqrt(KF_MAX_PX / px) : 1;
       decodeBlob(
@@ -709,7 +770,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const fetchKeyframe = (idx: number) => {
       kfStatus[idx] = ST_FETCHING;
       activeKfJobs++;
-      fetchBlob(framePath(idx, "lo"))
+      fetchBlob(framePath(idx, "lo", isMobile))
         .catch(() => null)
         .then((blob) => {
           if (disposed) return;
@@ -811,29 +872,28 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
 
       const now = performance.now();
       const y = window.scrollY;
-      if (y !== lastScrollY) {
+      const isMoving = y !== lastScrollY;
+      if (isMoving) {
         lastScrollY = y;
         lastScrollChange = now;
         const progress = Math.min(1, Math.max(0, (y - containerTop) / scrollable));
         targetFrame = progress * (TOTAL_FRAMES - 1);
-      } else if (now - lastScrollChange > SETTLE_IDLE_MS && targetFrame !== Math.round(targetFrame)) {
-        // Scrolling stopped between two frames: glide onto the nearest whole
-        // frame so the cross-fade fades out and a single sharp frame remains
-        // (resting on a blend of two frames looks like ghosting/blur).
-        targetFrame = Math.round(targetFrame);
+        const diff = targetFrame - currentFrame;
+        // Tightly track the active scroll position
+        const k = 1 - Math.exp(-Math.min(deltaMs ?? 16, 50) / 20);
+        currentFrame += diff * k;
+        needsDraw = true;
+      } else {
+        // SCROLL STOPPED: Immediately halt frame changing transitions!
+        const restingFrame = Math.round(targetFrame);
+        if (currentFrame !== restingFrame) {
+          currentFrame = restingFrame;
+          targetFrame = restingFrame;
+          needsDraw = true;
+        }
       }
 
-      // Slow cinematic glide: the shown frame eases toward the scroll target
-      // (frame-rate independent exponential smoothing), then settles exactly.
-      if (currentFrame !== targetFrame) {
-        const diff = targetFrame - currentFrame;
-        if (deltaMs === undefined || reducedMotion || Math.abs(diff) < 0.002) {
-          currentFrame = targetFrame;
-        } else {
-          const k = 1 - Math.exp(-Math.min(deltaMs, 100) / glideMs);
-          currentFrame += diff * k;
-        }
-        needsDraw = true;
+      if (needsDraw) {
         const shownProgress = currentFrame / (TOTAL_FRAMES - 1);
         if (progressBarRef.current) {
           progressBarRef.current.style.transform = `scaleX(${shownProgress})`;
@@ -877,7 +937,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         (conn.saveData === true ||
           /(^|-)(2g|3g)$/.test(conn.effectiveType ?? "") ||
           (typeof conn.downlink === "number" && conn.downlink > 0 && conn.downlink < 5));
-      const coverScale = Math.max(canvas.width / NATIVE_W, canvas.height / NATIVE_H);
+      const coverScale = Math.max(canvas.width / nativeW, canvas.height / nativeH);
       tier = !slowLink && coverScale > HD_TIER_ABOVE_SCALE ? "hd" : "md";
       computeDecodeSize(); // window size depends on the tier's pixel size
     }
@@ -890,10 +950,16 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     gsap.ticker.add(tick);
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    let prevIsMobile = isMobile;
     const onResize = () => {
       measure();
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
+        const nextIsMobile = checkIsMobile();
+        if (nextIsMobile !== prevIsMobile) {
+          window.location.reload();
+          return;
+        }
         resizeCanvas();
         evictOutsideWindow();
         pumpDecodes();
@@ -979,13 +1045,19 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
                 </p>
                 {ch.cta && (
                   <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3 sm:gap-4">
-                    <button
-                      type="button"
+                    <FlipButton
+                      from="top"
+                      tapScale={0.97}
                       onClick={onOpenBooking}
-                      className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3.5 rounded-full bg-[#BCB893] hover:bg-[#CFCCAE] text-[#1E1700] text-[11px] font-mono font-semibold uppercase tracking-[0.2em] shadow-xl shadow-black/40 transition-colors cursor-pointer"
+                      className="shadow-xl shadow-black/40 cursor-pointer"
                     >
-                      {ch.cta}
-                    </button>
+                      <FlipButtonFront className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3.5 rounded-full bg-[#BCB893] text-[#1E1700] text-[11px] font-mono font-semibold uppercase tracking-[0.2em]">
+                        {ch.cta}
+                      </FlipButtonFront>
+                      <FlipButtonBack className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3.5 rounded-full bg-[#CFCCAE] text-[#1E1700] text-[11px] font-mono font-semibold uppercase tracking-[0.2em]">
+                        Reserve Viewing →
+                      </FlipButtonBack>
+                    </FlipButton>
                     {i === 0 && (
                       <span className="hidden min-[400px]:inline font-mono text-[10px] uppercase tracking-[0.3em] text-[#F4F3EA]/60">
                         Scroll to begin the walkthrough

@@ -6,6 +6,11 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, ArrowRight, Calendar, Phone, Mail, Sparkles } from "lucide-react";
 import { useFavorites } from "@/lib/favorites";
 import { useLenis } from "@/components/animation";
+import {
+  FlipButton,
+  FlipButtonFront,
+  FlipButtonBack,
+} from "@/components/animate-ui/buttons/flip";
 
 interface NavbarProps {
   onOpenBooking?: () => void;
@@ -177,15 +182,21 @@ export function Navbar({ onOpenBooking }: NavbarProps) {
               {/* Drawer Bottom Actions: Schedule CTA & Global Desks */}
               <div className="pt-6 border-t border-[#D7D4BD]/15 space-y-6">
                 {/* Schedule Viewing Primary Button */}
-                <button
-                  type="button"
+                <FlipButton
+                  from="top"
+                  tapScale={0.97}
                   onClick={handleScheduleClick}
-                  className="w-full flex items-center justify-center gap-3 py-3.5 px-6 rounded-full bg-[#9D9970] hover:bg-[#BCB893] text-[#1E1700] font-mono text-xs uppercase tracking-[0.2em] font-semibold transition-all shadow-xl shadow-[#9D9970]/25 cursor-pointer"
+                  className="w-full shadow-xl shadow-[#9D9970]/25 cursor-pointer"
                 >
-                  <Calendar className="w-4 h-4" />
-                  <span>Request Private Viewing</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                  <FlipButtonFront className="w-full flex items-center justify-center gap-3 py-3.5 px-6 rounded-full bg-[#9D9970] text-[#1E1700] font-mono text-xs uppercase tracking-[0.2em] font-semibold">
+                    <Calendar className="w-4 h-4" />
+                    <span>Request Private Viewing</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </FlipButtonFront>
+                  <FlipButtonBack className="w-full flex items-center justify-center gap-3 py-3.5 px-6 rounded-full bg-[#BCB893] text-[#1E1700] font-mono text-xs uppercase tracking-[0.2em] font-semibold">
+                    <span>Reserve Time & Date →</span>
+                  </FlipButtonBack>
+                </FlipButton>
 
                 {/* Direct Contacts & Global Coordinates */}
                 <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-4 text-xs font-mono text-[#A9A68A]">

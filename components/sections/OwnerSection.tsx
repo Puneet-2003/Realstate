@@ -4,6 +4,11 @@ import React from "react";
 import Image from "next/image";
 import { ShieldCheck, Mail, Calendar, ArrowRight, Sparkles } from "lucide-react";
 import { FadeIn, StaggerContainer, StaggerItem } from "@/components/animation";
+import {
+  FlipButton,
+  FlipButtonFront,
+  FlipButtonBack,
+} from "@/components/animate-ui/buttons/flip";
 
 interface OwnerSectionProps {
   onOpenBooking?: () => void;
@@ -111,15 +116,21 @@ export function OwnerSection({ onOpenBooking }: OwnerSectionProps = {}) {
             {/* Direct Consultation Actions */}
             <StaggerItem className="pt-4 border-t border-[#3E3A1F] flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               {onOpenBooking && (
-                <button
-                  type="button"
+                <FlipButton
+                  from="top"
+                  tapScale={0.97}
                   onClick={onOpenBooking}
-                  className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-full text-xs font-mono uppercase tracking-[0.2em] font-semibold bg-[#9D9970] hover:bg-[#BCB893] text-[#1E1700] transition-all shadow-xl shadow-[#9D9970]/25 cursor-pointer"
+                  className="shadow-xl shadow-[#9D9970]/25 cursor-pointer"
                 >
-                  <Calendar className="w-4 h-4" />
-                  <span>Schedule Private Dialogue</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <FlipButtonFront className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-full text-xs font-mono uppercase tracking-[0.2em] font-semibold bg-[#9D9970] text-[#1E1700]">
+                    <Calendar className="w-4 h-4" />
+                    <span>Schedule Private Dialogue</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </FlipButtonFront>
+                  <FlipButtonBack className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-full text-xs font-mono uppercase tracking-[0.2em] font-semibold bg-[#BCB893] text-[#1E1700]">
+                    <span>Select Dialogue Time →</span>
+                  </FlipButtonBack>
+                </FlipButton>
               )}
 
               <a
