@@ -138,6 +138,26 @@ export function SmoothScrollProvider({
 
     lenisRef.current = lenis;
 
+    // Lenis rewrites every "lenis*" class on <html> (removes all, re-adds)
+    // whenever its scrolling state flips, which happens many times per touch
+    // drag and makes the browser re-check styles each time. Apply only the
+    // classes that actually changed.
+    {
+      const root = document.documentElement;
+      const l = lenis as unknown as { updateClassName: () => void; className: string };
+      let applied = new Set(Array.from(root.classList).filter((c) => c === "lenis" || c.startsWith("lenis-")));
+      l.updateClassName = () => {
+        const want = new Set(l.className.split(" "));
+        applied.forEach((c) => {
+          if (!want.has(c)) root.classList.remove(c);
+        });
+        want.forEach((c) => {
+          if (!applied.has(c)) root.classList.add(c);
+        });
+        applied = want;
+      };
+    }
+
     // Sync Lenis scroll with GSAP ScrollTrigger
     const handleScroll = () => {
       ScrollTrigger.update();

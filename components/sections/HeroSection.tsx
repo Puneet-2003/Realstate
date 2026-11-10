@@ -15,6 +15,7 @@ import {
   framePath,
 } from "@/lib/heroFrames";
 import { useLenis } from "@/components/animation/SmoothScrollProvider";
+import { FULL_REGION, decodeBlobTo, type DecodeRequest, type Region } from "./heroDecode";
 
 /**
  * Scroll-scrubbed 717-frame cinematic hero.
@@ -29,20 +30,24 @@ import { useLenis } from "@/components/animation/SmoothScrollProvider";
  *    and a sliding window of GPU-ready ImageBitmaps around the scroll position
  *    is kept within a fixed byte budget. Bitmaps leaving the window are close()d.
  *
- * 2. Off-main-thread decoding. createImageBitmap() decodes on a worker pool at
- *    native size (~3x faster than a resampled decode), so drawImage() never
- *    decodes. Decodes are led by scroll velocity and ordered coarse-to-fine
- *    (every 8th → 4th → 2nd → every frame) so the image tracks the scroll
- *    position even when the user scrolls faster than frames can be decoded.
+ * 2. Off-main-thread decoding. createImageBitmap() decodes on the browser's
+ *    decoder threads, so drawImage() never decodes. A full frame still takes
+ *    ~35 ms to decode on a fast desktop core (3–5x that on a phone), so only
+ *    a few run in parallel (they compete with the main thread for CPU), led by
+ *    scroll velocity and ordered coarse-to-fine (every 8th → 4th → 2nd → all).
  *
- * 3. Resident low-res keyframes. Every 4th frame (6th on touch) is also kept
- *    as a small bitmap that is never evicted, so a fast flick always has an
- *    image within ~2 frames to show instead of freezing on a stale frame.
+ * 3. Low-res motion tier. A scroll consumes ~100 frames/s, faster than full
+ *    frames can be decoded on any device. Every frame also has a small "lo"
+ *    encode that decodes 4–7x faster: these carry the motion (every frame, no
+ *    stepping), and the sharp full frame replaces them as soon as the playhead
+ *    slows or stops. Lo bitmaps are kept in a window around the playhead,
+ *    plus every 8th frame resident so a fast flick never freezes the image.
  *
- * 4. One frame clock. Rendering runs on the same gsap ticker that drives Lenis
- *    (Lenis is prioritized, so scroll is updated before we read it), instead of
- *    a second Framer Motion scroll listener + spring on a separate rAF loop.
- *    The canvas is only repainted when the scroll position actually changes.
+ * 4. One frame clock, minimal paints. Rendering runs on the same gsap ticker
+ *    that drives Lenis (Lenis is prioritized, so scroll is updated before we
+ *    read it). Each paint draws one image (every new image is uploaded to the
+ *    GPU on the main thread), and nothing is drawn when the image on screen
+ *    would not change.
  *
  * 5. Allocation-free hot path. No per-frame arrays, queues, or closures.
  */
@@ -51,12 +56,17 @@ const MAX_CONCURRENT_FETCHES = 8;
 // The tiny "lo" keyframes get their own lane so they are never stuck behind
 // full-size downloads on a cold (first-visit) cache.
 const MAX_CONCURRENT_KF_FETCHES = 6;
-// Decode pre-shrunk bitmaps when the canvas is far smaller than the source.
-const RESIZE_DECODE_BELOW_SCALE = 0.6;
-// Canvas pixel density cap. Higher than this costs memory without visibly
-// sharper frames; lower (the old 1.25 on phones) made the browser stretch the
-// canvas 2–2.4x on high-density screens, which is what looked blurry.
-const MAX_CANVAS_DPR = 2;
+// Decode pre-shrunk bitmaps (exactly canvas-sized) whenever the canvas is
+// noticeably smaller than the visible part of the source. Every painted frame
+// is uploaded to the GPU on the main thread, so fewer pixels per bitmap means
+// less work per scroll frame (and more frames fit in the decode budget).
+const RESIZE_DECODE_BELOW_SCALE = 0.85;
+// Canvas pixel density cap. Phones: 1.5 keeps the image crisp in motion while
+// uploading ~2.3x fewer pixels per frame than a native-size decode (the old
+// 1.25 looked soft; 2 made the main thread the bottleneck). Desktop is bounded
+// by MAX_CANVAS_PIXELS anyway.
+const MAX_CANVAS_DPR_TOUCH = 1.5;
+const MAX_CANVAS_DPR_DESKTOP = 2;
 // ---- Feel tuning ----
 // Scroll distance the 717 frames are spread over. Taller = slower animation
 // per wheel step / swipe.
@@ -74,9 +84,9 @@ const SETTLE_IDLE_MS = 140;
 // nearest to the scroll position first.
 // Full-resolution frames from the start that must be downloaded first.
 const READY_FULL_FRAMES = 12;
-// Low-res keyframes must cover this many opening frames (~the first screen
-// or two of scrolling) so an early fast flick never shows a stale image.
-const READY_KF_SPAN = 120;
+// Low-res motion frames that must be ready for the opening of the
+// walkthrough (~the first screen of scrolling), so it starts moving smoothly.
+const READY_LO_FRAMES = 36;
 
 // Typical decode latency expressed in display ticks, used to lead decodes.
 const DECODE_LEAD_TICKS = 4;
@@ -103,52 +113,16 @@ const releaseBitmap = (b: FrameBitmap | null) => {
   if (b && "close" in b) b.close();
 };
 
-/** A region of the full frame, as fractions (0–1) of its width/height. */
-interface Region {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-const FULL_REGION: Region = { x: 0, y: 0, w: 1, h: 1 };
 /** Which part of the full frame each decoded bitmap holds. */
 const regionOf = new WeakMap<object, Region>();
 const getRegion = (b: FrameBitmap) => regionOf.get(b) ?? FULL_REGION;
 
-/**
- * Off-main-thread decode of only the visible (cover-cropped) part of a frame.
- * On a portrait phone that is ~25% of the frame, so 4x more frames fit in the
- * same memory and no pixels are wasted. Native-size decode is ~3x faster than
- * a resampled one, so resizing is only used when the canvas is far smaller.
- */
-async function decodeBlob(
-  blob: Blob,
-  srcW: number,
-  srcH: number,
-  crop: Region,
-  outW: number,
-  outH: number,
-  resize: boolean
-): Promise<FrameBitmap> {
+/** Decodes the visible part of an encoded frame (off-thread where supported). */
+async function decodeFrameBlob(blob: Blob, req: DecodeRequest): Promise<FrameBitmap> {
   if (typeof createImageBitmap === "function") {
-    const full = crop.w >= 0.999 && crop.h >= 0.999;
-    const sx = full ? 0 : Math.max(0, Math.floor(crop.x * srcW));
-    const sy = full ? 0 : Math.max(0, Math.floor(crop.y * srcH));
-    const sw = full ? srcW : Math.min(srcW - sx, Math.ceil(crop.w * srcW));
-    const sh = full ? srcH : Math.min(srcH - sy, Math.ceil(crop.h * srcH));
-    const opts: ImageBitmapOptions | undefined = resize
-      ? { resizeWidth: outW, resizeHeight: outH, resizeQuality: "medium" }
-      : undefined;
-    try {
-      const bmp = full
-        ? await createImageBitmap(blob, opts)
-        : await createImageBitmap(blob, sx, sy, sw, sh, opts);
-      regionOf.set(bmp, full ? FULL_REGION : { x: sx / srcW, y: sy / srcH, w: sw / srcW, h: sh / srcH });
-      return bmp;
-    } catch {
-      // Older engines without crop/resize options: plain full decode.
-      return await createImageBitmap(blob);
-    }
+    const { bmp, region } = await decodeBlobTo(blob, req);
+    regionOf.set(bmp, region);
+    return bmp;
   }
   // Legacy fallback
   const url = URL.createObjectURL(blob);
@@ -162,6 +136,8 @@ async function decodeBlob(
     URL.revokeObjectURL(url);
   }
 }
+
+type Tier = 0 | 1; // 0 = full frames, 1 = low-res motion frames
 
 // ---- Story overlays -----------------------------------------------------
 // Business introduction shown over the walkthrough. `start`/`end` are hero
@@ -254,13 +230,14 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const abort = new AbortController();
 
     const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-    const decodedBudgetBytes = (isTouch ? 200 : 400) * 1024 * 1024;
-    // createImageBitmap decodes on a worker pool; use the cores we have.
-    const maxDecodes = Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 4) - 2));
+    const decodedBudgetBytes = (isTouch ? 150 : 300) * 1024 * 1024;
+    // Parallel full-frame decodes. A full frame takes ~35 ms to decode even on
+    // a fast desktop core (3–5x that on a phone), and every parallel decode
+    // competes with the main thread for CPU, so phones get few slots.
+    const maxDecodes = isTouch ? 2 : Math.max(2, Math.min(4, (navigator.hardwareConcurrency || 4) - 2));
 
     // ---- Frame storage -------------------------------------------------
     const status = new Uint8Array(TOTAL_FRAMES);
-    const blobs: (Blob | null)[] = new Array(TOTAL_FRAMES).fill(null);
     const bitmaps: (FrameBitmap | null)[] = new Array(TOTAL_FRAMES).fill(null);
     const bitmapGen = new Int32Array(TOTAL_FRAMES).fill(-1); // decode-size generation
     const decoding = new Uint8Array(TOTAL_FRAMES);
@@ -270,22 +247,27 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let settledFetches = 0;
     let activeDecodes = 0;
 
-    // Resident low-res keyframes (every KF_STRIDE-th frame), decoded from the
-    // 640px "lo" tier at full sharpness and cropped to the visible region: a
-    // never-evicted fallback so very fast flicks never freeze the image.
-    const KF_STRIDE = 4;
-    // Max decoded pixels per keyframe (bounds memory on landscape screens).
-    const KF_MAX_PX = isTouch ? 140_000 : 230_400;
-    const keyframes: (FrameBitmap | null)[] = new Array(TOTAL_FRAMES).fill(null);
-    const kfBlobs: (Blob | null)[] = new Array(TOTAL_FRAMES).fill(null);
+    // ---- Low-res "motion" tier ------------------------------------------
+    // Every frame also exists as a small "lo" encode that decodes 4–7x faster
+    // than the full frame. Full frames cannot be decoded as fast as a scroll
+    // consumes them (~100 frames/s) on any device, so the lo frames carry the
+    // motion — every frame, no stepping — and full frames take over as soon
+    // as the playhead slows down or stops.
+    // Lo bitmaps are kept decoded in a window around the playhead, plus every
+    // KF_STRIDE-th frame resident for the whole sequence (fast-flick fallback).
+    const KF_STRIDE = 8;
+    const LO_AHEAD = isTouch ? 60 : 90;
+    const LO_BEHIND = isTouch ? 20 : 30;
+    // Max decoded pixels per lo bitmap (bounds memory on phones).
+    const LO_MAX_PX = isTouch ? 260_000 : 230_400;
+    const MAX_LO_DECODES = 3;
+    const keyframes: (FrameBitmap | null)[] = new Array(TOTAL_FRAMES).fill(null); // lo bitmaps
     const kfStatus = new Uint8Array(TOTAL_FRAMES);
     const kfGen = new Int32Array(TOTAL_FRAMES).fill(-1); // crop generation decoded at
     const kfBusy = new Uint8Array(TOTAL_FRAMES);
-    let activeKfJobs = 0;
-    let settledKfFetches = 0;
-    let failedKeyframes = 0;
-    let currentKeyframes = 0; // keyframes decoded for the current crop
-    const totalKeyframes = Math.ceil(TOTAL_FRAMES / KF_STRIDE);
+    const loDecoded = new Set<number>();
+    let activeKfFetches = 0;
+    let activeKfDecodes = 0;
 
     const isMobile = checkIsMobile();
     // Source frame dimensions: 1080x1920 (portrait) for mobile, 1920x1080
@@ -312,7 +294,6 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let lastScrollY = -1;
     let currentFrame = 0; // float, frame currently shown (eased)
     let targetFrame = 0; // float, frame the scroll position asks for
-    let lastScrollChange = 0;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const glideMs = isTouch ? FRAME_GLIDE_MS_TOUCH : FRAME_GLIDE_MS_WHEEL;
     let center = 0; // integer frame the window is centred on
@@ -348,7 +329,6 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       if (Math.abs(next.w - crop.w) > 0.002 || Math.abs(next.h - crop.h) > 0.002) {
         crop = next;
         cropGen++;
-        currentKeyframes = 0;
         generation++; // existing bitmaps stay drawable but get re-decoded lazily
       } else if (canvas.width !== lastCanvasW || canvas.height !== lastCanvasH) {
         generation++;
@@ -363,7 +343,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     };
 
     const resizeCanvas = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, MAX_CANVAS_DPR);
+      const dpr = Math.min(window.devicePixelRatio || 1, isTouch ? MAX_CANVAS_DPR_TOUCH : MAX_CANVAS_DPR_DESKTOP);
       const cssW = viewport.clientWidth || window.innerWidth;
       const cssH = viewport.clientHeight || window.innerHeight;
       // Never exceed the source pixels actually on screen (cover crop): more
@@ -383,6 +363,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         canvas.width = w;
         canvas.height = h;
         ctx = null; // context state resets on resize
+        lastPainted = null; // resizing clears the canvas
       }
       computeDecodeSize();
       needsDraw = true;
@@ -399,6 +380,8 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     };
 
     // ---- Drawing -------------------------------------------------------
+    // Bitmap currently on the canvas (skip repainting identical pixels).
+    let lastPainted: FrameBitmap | null = null;
     const getCtx = () => {
       if (ctx) return ctx;
       ctx = canvas.getContext("2d", { alpha: false });
@@ -426,33 +409,35 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let resolvedIsKeyframe = false;
 
     /**
-     * Best available image for a frame: the exact full-res bitmap, else the
-     * closer of the nearest full-res bitmap and the nearest resident low-res
-     * keyframe. A full-res neighbour one frame away beats a keyframe.
+     * Best available image for a frame, in order:
+     *  1. the exact full-resolution frame;
+     *  2. when moving slowly, a full-res neighbour one frame away (sharp, and
+     *     a one-frame offset is imperceptible);
+     *  3. the exact low-res frame (keeps motion continuous when the full
+     *     decoder is behind, which it always is during a real scroll);
+     *  4. whichever tier has the nearest frame.
      */
     const resolveSource = (idx: number): FrameBitmap | null => {
       resolvedIsKeyframe = false;
+      resolvedIdx = idx;
+      if (bitmaps[idx]) return bitmaps[idx];
+      if (velocity < 1) {
+        if (idx > 0 && bitmaps[idx - 1]) return bitmaps[(resolvedIdx = idx - 1)];
+        if (idx + 1 < TOTAL_FRAMES && bitmaps[idx + 1]) return bitmaps[(resolvedIdx = idx + 1)];
+      }
+      if (keyframes[idx]) {
+        resolvedIsKeyframe = true;
+        return keyframes[idx];
+      }
       const full = nearestDecoded(idx);
       const fullGap = full < 0 ? Infinity : Math.abs(full - idx);
-      // A sharp frame up to 2 away (imperceptible mid-scroll) beats a soft
-      // low-res keyframe, which is never more than 2 away either.
-      if (fullGap <= 2) {
-        resolvedIdx = full;
-        return bitmaps[full];
-      }
-      const k0 = idx - (idx % KF_STRIDE);
-      let kf = -1;
-      let kfGap = Infinity;
-      for (let k = k0 - KF_STRIDE; k <= k0 + 2 * KF_STRIDE; k += KF_STRIDE) {
-        if (k >= 0 && k < TOTAL_FRAMES && keyframes[k] && Math.abs(k - idx) < kfGap) {
-          kf = k;
-          kfGap = Math.abs(k - idx);
+      for (let d = 1; d <= KF_STRIDE && d < fullGap; d++) {
+        const k = keyframes[idx - d] ? idx - d : keyframes[idx + d] ? idx + d : -1;
+        if (k >= 0 && k < TOTAL_FRAMES) {
+          resolvedIdx = k;
+          resolvedIsKeyframe = true;
+          return keyframes[k];
         }
-      }
-      if (kf >= 0 && kfGap < fullGap) {
-        resolvedIdx = kf;
-        resolvedIsKeyframe = true;
-        return keyframes[kf];
       }
       resolvedIdx = full;
       return full >= 0 ? bitmaps[full] : null;
@@ -496,46 +481,31 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       c.drawImage(bmp, sx, sy, sw, sh, dx, dy, dw, dh);
     };
 
+    /**
+     * Paints one frame. Every new image drawn has to be uploaded to the GPU on
+     * the main thread during the next commit (measured as the dominant per-
+     * frame cost on phones), so: one image per paint (no cross-fade between
+     * neighbours; at 717 frames it is invisible but doubled the uploads), and
+     * nothing at all when the image on screen would not change, e.g. scroll
+     * ticks between two frames, or scrolling the page below the hero.
+     */
     const draw = (frameFloat: number) => {
-      const now = performance.now();
-      const isActivelyScrolling = now - lastScrollChange < 60;
-
-      const floorIdx = Math.floor(frameFloat);
-      const ceilIdx = Math.min(TOTAL_FRAMES - 1, floorIdx + 1);
-      const fraction = frameFloat - floorIdx;
-
-      let baseIdx = isActivelyScrolling ? floorIdx : Math.round(frameFloat);
-      let blendIdx = -1;
-      if (isActivelyScrolling && fraction > 0.97 && bitmaps[ceilIdx]) {
-        baseIdx = ceilIdx;
-      } else if (isActivelyScrolling && fraction > 0.04 && bitmaps[floorIdx] && bitmaps[ceilIdx] && ceilIdx !== floorIdx) {
-        blendIdx = ceilIdx;
-      }
-
+      const baseIdx = Math.round(frameFloat);
       const base = resolveSource(baseIdx);
       const resolved = resolvedIdx;
       if (!base) return; // nothing ready yet; keep last painted image
+      shownExact = resolved === baseIdx && !resolvedIsKeyframe;
+      if (base === lastPainted) return; // identical pixels already on screen
       // The context is only created once there is a frame to paint: an opaque
       // context turns the canvas black, which would hide the server-rendered
       // poster underneath until then.
       const c = getCtx();
       if (!c) return;
-      if (resolved !== baseIdx || resolvedIsKeyframe) blendIdx = -1;
-
-      c.globalAlpha = 1;
       blit(c, base);
-
-      if (blendIdx >= 0) {
-        c.globalAlpha = fraction;
-        blit(c, bitmaps[blendIdx]!);
-        c.globalAlpha = 1;
-      }
-
       if (!isMobile) {
         maskWatermark(c, base);
       }
-      const wantsBlend = isActivelyScrolling && fraction > 0.04 && fraction <= 0.97 && ceilIdx !== floorIdx;
-      shownExact = resolved === baseIdx && !resolvedIsKeyframe && (!wantsBlend || blendIdx >= 0);
+      lastPainted = base;
     };
 
     // ---- Decode window management --------------------------------------
@@ -557,14 +527,12 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     };
 
     const decodeFrame = (idx: number) => {
-      const blob = blobs[idx];
-      if (!blob) return;
       decoding[idx] = 1;
       activeDecodes++;
       const gen = generation;
       const srcW = blobW[idx] || nativeW;
       planDecode(srcW);
-      decodeBlob(blob, srcW, Math.round((srcW * nativeH) / nativeW), crop, outW, outH, outResize)
+      decodeTo(0, idx, { srcW, srcH: Math.round((srcW * nativeH) / nativeW), crop, outW, outH, resize: outResize })
         .then((bmp) => {
           if (disposed) {
             releaseBitmap(bmp);
@@ -598,10 +566,16 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       !decoding[idx] &&
       bitmapGen[idx] !== generation;
 
+    // While the playhead moves fast, full frames are stale before they land:
+    // keep one slot (for the frame under the playhead) and leave the CPU to
+    // the low-res motion tier. All slots open up again as it slows down.
+    const fullSlots = () => (velocity > 1.5 ? 1 : maxDecodes);
+
     /** Starts a decode if needed; returns false once all decode slots are busy. */
     const tryDecode = (idx: number) => {
+      if (activeDecodes >= fullSlots()) return false;
       if (needsDecode(idx)) decodeFrame(idx);
-      return activeDecodes < maxDecodes;
+      return activeDecodes < fullSlots();
     };
 
     /**
@@ -612,7 +586,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
      * image freezing on a frame far behind the scroll position.
      */
     const pumpDecodes = () => {
-      if (activeDecodes >= maxDecodes) return;
+      if (activeDecodes >= fullSlots()) return;
       // Aim where the playhead will be when the decode lands (~4 ticks out),
       // otherwise fast scrolling decodes frames that are stale on arrival.
       const lead = Math.min(windowAhead >> 1, Math.round(velocity * DECODE_LEAD_TICKS));
@@ -632,16 +606,29 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       }
     };
 
-    // ---- Network streaming (compressed bytes only) -----------------------
-    // Same request mode as the server-rendered poster and the <link rel=preload
-    // as=fetch crossorigin> hints (CORS, anonymous), so those downloads are
-    // reused from the browser cache instead of fetched twice.
-    const fetchBlob = async (url: string, priority: FetchPriority): Promise<Blob | null> => {
-      const res = await fetch(url, { signal: abort.signal, priority } as RequestInit);
-      if (!res.ok) return null;
-      return res.blob();
+    // ---- Encoded frames ---------------------------------------------------
+    // Only the compressed bytes are kept for the whole sequence (per tier);
+    // bitmaps are decoded from them on demand and evicted again.
+    const encoded: [Map<number, Blob>, Map<number, Blob>] = [new Map(), new Map()];
+
+    /** Downloads one frame (with one retry); resolves whether it succeeded. */
+    const loadFrame = async (tier: Tier, idx: number, url: string, priority: FetchPriority) => {
+      const get = () =>
+        fetch(url, { signal: abort.signal, priority } as RequestInit)
+          .then((r) => (r.ok ? r.blob() : null))
+          .catch(() => null);
+      const blob = (await get()) ?? (disposed ? null : await get());
+      if (blob) encoded[tier].set(idx, blob);
+      return !!blob;
     };
 
+    /** Decodes a downloaded frame. */
+    const decodeTo = (tier: Tier, idx: number, req: DecodeRequest): Promise<FrameBitmap> => {
+      const blob = encoded[tier].get(idx);
+      return blob ? decodeFrameBlob(blob, req) : Promise.reject(new Error("not downloaded"));
+    };
+
+    // ---- Network streaming (compressed bytes only) -----------------------
     const fetchFrame = (idx: number) => {
       status[idx] = ST_FETCHING;
       activeFetches++;
@@ -649,14 +636,13 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       // Frames the playhead is about to reach outrank background streaming.
       const near = Math.abs(idx - center) <= windowAhead;
       const priority: FetchPriority = near ? "high" : "low";
-      fetchBlob(url, priority)
-        .catch(() => null)
-        // One retry for transient network/CDN errors.
-        .then((blob) => blob ?? (disposed ? null : fetchBlob(url, priority).catch(() => null)))
-        .then((blob) => {
+      // Same request mode as the server-rendered poster and the <link
+      // rel=preload as=fetch crossorigin> hints (CORS, anonymous), so those
+      // downloads are reused from the browser cache.
+      loadFrame(0, idx, url, priority)
+        .then((ok) => {
           if (disposed) return;
-          if (blob) {
-            blobs[idx] = blob;
+          if (ok) {
             blobW[idx] = nativeW;
             status[idx] = ST_FETCHED;
             if (inWindow(idx)) pumpDecodes();
@@ -696,40 +682,54 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       }
     };
 
-    /**
-     * Resident low-res keyframes come from the ~4 KB "lo" tier on their own
-     * lane, nearest-first. On a cold cache the whole walkthrough becomes
-     * scrubbable within a few hundred KB, instead of waiting on full frames.
-     */
-    /** Decodes a keyframe's visible region from its "lo" blob (re-run on crop change). */
+    // ---- Low-res motion tier: fetch + decode lanes -----------------------
+    // Fetches and decodes run on separate lanes so cheap lo downloads never
+    // wait behind decodes and vice versa.
+    const isResident = (k: number) => k % KF_STRIDE === 0;
+    const inLoWindow = (k: number) =>
+      direction > 0
+        ? k >= center - LO_BEHIND && k <= center + LO_AHEAD
+        : k >= center - LO_AHEAD && k <= center + LO_BEHIND;
+    const wantLo = (k: number) => isResident(k) || inLoWindow(k);
+
+    /** Frees lo bitmaps that are neither resident nor near the playhead. */
+    const evictLo = () => {
+      loDecoded.forEach((k) => {
+        if (!wantLo(k)) {
+          releaseBitmap(keyframes[k]);
+          keyframes[k] = null;
+          kfGen[k] = -1;
+          loDecoded.delete(k);
+        }
+      });
+    };
+
+    /** Decodes the visible region of a lo frame (re-run on crop change). */
     const decodeKeyframe = (idx: number) => {
-      const blob = kfBlobs[idx];
-      if (!blob) return;
       kfBusy[idx] = 1;
-      activeKfJobs++;
+      activeKfDecodes++;
       const g = cropGen;
       const srcW = loW;
       const srcH = Math.round((srcW * nativeH) / nativeW);
       const px = crop.w * srcW * crop.h * srcH;
-      const s = px > KF_MAX_PX ? Math.sqrt(KF_MAX_PX / px) : 1;
-      decodeBlob(
-        blob,
+      const s = px > LO_MAX_PX ? Math.sqrt(LO_MAX_PX / px) : 1;
+      decodeTo(1, idx, {
         srcW,
         srcH,
         crop,
-        Math.max(1, Math.round(crop.w * srcW * s)),
-        Math.max(1, Math.round(crop.h * srcH * s)),
-        s < 1
-      )
+        outW: Math.max(1, Math.round(crop.w * srcW * s)),
+        outH: Math.max(1, Math.round(crop.h * srcH * s)),
+        resize: s < 1,
+      })
         .then((bmp) => {
-          if (disposed) {
-            releaseBitmap(bmp);
+          if (disposed || !wantLo(idx)) {
+            releaseBitmap(bmp); // the playhead moved on while decoding
             return;
           }
           releaseBitmap(keyframes[idx]);
           keyframes[idx] = bmp;
           kfGen[idx] = g;
-          if (g === cropGen) currentKeyframes++;
+          loDecoded.add(idx);
           if (!shownExact) needsDraw = true;
         })
         .catch(() => {
@@ -737,7 +737,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         })
         .finally(() => {
           kfBusy[idx] = 0;
-          activeKfJobs--;
+          activeKfDecodes--;
           if (!disposed) {
             pumpKeyframes();
             reportReadiness();
@@ -747,25 +747,21 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
 
     const fetchKeyframe = (idx: number) => {
       kfStatus[idx] = ST_FETCHING;
-      activeKfJobs++;
-      // Keyframes for the opening stretch gate the reveal; the rest are a
-      // background fallback and must not slow the frames under the playhead.
-      const priority: FetchPriority = Math.abs(idx - center) < READY_KF_SPAN ? "high" : "low";
-      fetchBlob(framePath(idx, "lo", isMobile), priority)
-        .catch(() => null)
-        .then((blob) => {
+      activeKfFetches++;
+      // Lo frames near the playhead (and the opening stretch, which gates the
+      // reveal) outrank background streaming of the rest.
+      const priority: FetchPriority = inLoWindow(idx) || idx < READY_LO_FRAMES ? "high" : "low";
+      loadFrame(1, idx, framePath(idx, "lo", isMobile), priority)
+        .then((ok) => {
           if (disposed) return;
-          if (blob) {
-            kfBlobs[idx] = blob;
+          if (ok) {
             kfStatus[idx] = ST_FETCHED;
           } else {
             kfStatus[idx] = ST_FAILED;
-            failedKeyframes++;
           }
         })
         .finally(() => {
-          activeKfJobs--;
-          settledKfFetches++;
+          activeKfFetches--;
           if (!disposed) {
             pumpKeyframes();
             reportReadiness();
@@ -773,29 +769,79 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         });
     };
 
-    /** Starts a keyframe fetch or (re-)decode if needed; false once the lane is full. */
-    const tryKeyframe = (k: number) => {
-      if (k < 0 || k >= TOTAL_FRAMES) return true;
-      if (kfStatus[k] === ST_IDLE) fetchKeyframe(k);
-      else if (kfStatus[k] === ST_FETCHED && kfGen[k] !== cropGen && !kfBusy[k]) decodeKeyframe(k);
-      return activeKfJobs < MAX_CONCURRENT_KF_FETCHES;
+    const tryLoFetch = (k: number) => {
+      if (k >= 0 && k < TOTAL_FRAMES && kfStatus[k] === ST_IDLE) fetchKeyframe(k);
+      return activeKfFetches < MAX_CONCURRENT_KF_FETCHES;
+    };
+    const tryLoDecode = (k: number) => {
+      if (
+        k >= 0 &&
+        k < TOTAL_FRAMES &&
+        kfStatus[k] === ST_FETCHED &&
+        kfGen[k] !== cropGen &&
+        !kfBusy[k] &&
+        wantLo(k)
+      ) {
+        decodeKeyframe(k);
+      }
+      return activeKfDecodes < MAX_LO_DECODES;
+    };
+
+    /**
+     * Lo decode order: led by scroll velocity (aim where the playhead will be
+     * when the decode lands), coarse-to-fine ahead so gaps stay small even
+     * when decoding falls behind, then behind, then the resident set.
+     */
+    const pumpLoDecodes = () => {
+      if (activeKfDecodes >= MAX_LO_DECODES) return;
+      const lead = Math.min(LO_AHEAD >> 1, Math.round(velocity * DECODE_LEAD_TICKS));
+      if (!tryLoDecode(center) || !tryLoDecode(center + direction * lead)) return;
+      for (let stride = 4; stride >= 1; stride >>= 1) {
+        for (let d = lead; d <= LO_AHEAD; d += stride) {
+          if (!tryLoDecode(center + direction * d)) return;
+        }
+      }
+      for (let d = 1; d < lead; d++) {
+        if (!tryLoDecode(center + direction * d)) return;
+      }
+      for (let d = 1; d <= LO_BEHIND; d++) {
+        if (!tryLoDecode(center - direction * d)) return;
+      }
+      const k0 = center - (center % KF_STRIDE);
+      for (let d = 0; d < TOTAL_FRAMES; d += KF_STRIDE) {
+        if (!tryLoDecode(k0 + direction * d) || !tryLoDecode(k0 - direction * d)) return;
+      }
+    };
+
+    /** Lo download order: the window, then the resident set, then the rest. */
+    const pumpLoFetches = () => {
+      if (activeKfFetches >= MAX_CONCURRENT_KF_FETCHES) return;
+      if (!readyReported) {
+        // Until the site is revealed, only the opening stretch.
+        for (let k = 0; k < READY_LO_FRAMES; k++) if (!tryLoFetch(k)) return;
+        return;
+      }
+      for (let d = 0; d <= LO_AHEAD; d++) {
+        if (!tryLoFetch(center + direction * d)) return;
+        if (d > 0 && d <= LO_BEHIND && !tryLoFetch(center - direction * d)) return;
+      }
+      const k0 = center - (center % KF_STRIDE);
+      for (let d = 0; d < TOTAL_FRAMES; d += KF_STRIDE) {
+        if (!tryLoFetch(k0 + direction * d) || !tryLoFetch(k0 - direction * d)) return;
+      }
+      for (let d = 0; d < TOTAL_FRAMES; d++) {
+        if (!tryLoFetch(center + direction * d) || !tryLoFetch(center - direction * d)) return;
+      }
     };
 
     const pumpKeyframes = () => {
-      if (activeKfJobs >= MAX_CONCURRENT_KF_FETCHES) return;
-      if (settledKfFetches >= totalKeyframes && currentKeyframes + failedKeyframes >= totalKeyframes) return;
-      const k0 = center - (center % KF_STRIDE);
-      // Until the site is revealed, spend the lane only on the opening stretch.
-      const reach = readyReported ? TOTAL_FRAMES : READY_KF_SPAN;
-      for (let d = 0; d < reach; d += KF_STRIDE) {
-        if (!tryKeyframe(k0 + direction * d)) return;
-        if (d > 0 && !tryKeyframe(k0 - direction * d)) return;
-      }
+      pumpLoDecodes();
+      pumpLoFetches();
     };
 
     // ---- First-load readiness ------------------------------------------
     // Progress (0–1) is published on window for the branded loading screen:
-    // keyframes covering the opening READY_KF_SPAN frames, the first
+    // the low-res frames of the opening READY_LO_FRAMES frames, the first
     // READY_FULL_FRAMES full-resolution frames, and the exact frame painted.
     // The remaining frames keep streaming after the reveal.
     type HeroWindow = Window & { __heroProgress?: number; __heroReady?: boolean };
@@ -804,14 +850,11 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const reportReadiness = () => {
       if (readyReported) return;
       let kfDone = 0;
-      let kfTotal = 0;
-      const k0 = center - (center % KF_STRIDE);
-      for (let k = k0; k < Math.min(TOTAL_FRAMES, k0 + READY_KF_SPAN); k += KF_STRIDE) {
-        kfTotal++;
+      for (let k = 0; k < READY_LO_FRAMES; k++) {
         // Decoded for the current crop (or undecodable), or failed to download.
         if (kfGen[k] === cropGen || kfStatus[k] === ST_FAILED) kfDone++;
       }
-      const kf = kfTotal ? kfDone / kfTotal : 1;
+      const kf = kfDone / READY_LO_FRAMES;
       let full = 0;
       const start = Math.max(0, Math.min(center, TOTAL_FRAMES - READY_FULL_FRAMES));
       for (let i = start; i < start + READY_FULL_FRAMES; i++) {
@@ -822,7 +865,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       const ready = kf >= 1 && fullP >= 1 && shownExact;
       if (ready) {
         readyReported = true;
-        pumpKeyframes(); // widen the keyframe lane to the whole walkthrough
+        pumpKeyframes(); // widen the lo lane to the whole walkthrough
       }
       const prev = hw.__heroProgress ?? 0;
       if (ready || p - prev >= 0.01) {
@@ -861,16 +904,15 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
 
     // ---- Single per-frame tick (shared clock with Lenis) ---------------
     // `deltaMs` comes from the gsap ticker; called without it (boot) we snap.
+    let lastBarProgress = -1;
     const tick = (_time?: number, deltaMs?: number) => {
       velocity = velocity * 0.75 + Math.abs(currentFrame - prevTickFrame) * 0.25;
       prevTickFrame = currentFrame;
 
-      const now = performance.now();
       const y = window.scrollY;
       const isMoving = y !== lastScrollY;
       if (isMoving) {
         lastScrollY = y;
-        lastScrollChange = now;
         const progress = Math.min(1, Math.max(0, (y - containerTop) / scrollable));
         targetFrame = progress * (TOTAL_FRAMES - 1);
         const diff = targetFrame - currentFrame;
@@ -890,8 +932,11 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
 
       if (needsDraw) {
         const shownProgress = currentFrame / (TOTAL_FRAMES - 1);
-        if (progressBarRef.current) {
-          progressBarRef.current.style.transform = `scaleX(${shownProgress})`;
+        // Style writes invalidate style for the frame: only write on change
+        // (not on every scroll tick below the hero, where progress stays 1).
+        if (progressBarRef.current && Math.abs(shownProgress - lastBarProgress) > 0.0005) {
+          lastBarProgress = shownProgress;
+          progressBarRef.current.style.transform = `scaleX(${shownProgress.toFixed(4)})`;
         }
         updateOverlays(shownProgress);
         const nextCenter = Math.round(currentFrame);
@@ -899,9 +944,10 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
           direction = nextCenter > center ? 1 : -1;
           center = nextCenter;
           evictOutsideWindow();
+          evictLo();
+          pumpKeyframes(); // lo first: it carries the motion
           pumpDecodes();
           pumpFetches();
-          pumpKeyframes();
         }
       }
 
@@ -983,6 +1029,8 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     return () => {
       disposed = true;
       abort.abort();
+      encoded[0].clear();
+      encoded[1].clear();
       gsap.ticker.remove(tick);
       ro?.disconnect();
       window.removeEventListener("resize", onResize);
@@ -996,8 +1044,6 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         releaseBitmap(keyframes[i]);
         bitmaps[i] = null;
         keyframes[i] = null;
-        kfBlobs[i] = null;
-        blobs[i] = null;
       }
       decodedIndices.clear();
     };
