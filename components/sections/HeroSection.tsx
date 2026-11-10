@@ -7,6 +7,13 @@ import {
   FlipButtonFront,
   FlipButtonBack,
 } from "@/components/animate-ui/buttons/flip";
+import {
+  FRAME_SIZE,
+  MOBILE_FRAMES_MEDIA,
+  TOTAL_FRAMES,
+  checkIsMobile,
+  framePath,
+} from "@/lib/heroFrames";
 
 /**
  * Scroll-scrubbed 717-frame cinematic hero.
@@ -39,20 +46,16 @@ import {
  * 5. Allocation-free hot path. No per-frame arrays, queues, or closures.
  */
 
-const TOTAL_FRAMES = 717;
-// Bump after regenerating tiers or updating assets
-const CACHE_VERSION = "cloudinary_all_717_v1";
 const MAX_CONCURRENT_FETCHES = 8;
 // The tiny "lo" keyframes get their own lane so they are never stuck behind
 // full-size downloads on a cold (first-visit) cache.
 const MAX_CONCURRENT_KF_FETCHES = 6;
-// Use the 1920px tier only when the canvas actually needs more than ~1280px.
-const HD_TIER_ABOVE_SCALE = 0.68;
 // Decode pre-shrunk bitmaps when the canvas is far smaller than the source.
 const RESIZE_DECODE_BELOW_SCALE = 0.6;
-// Pixel tiers of the re-encoded frames
-const TIER_W_DESKTOP: Record<FrameTier, number> = { lo: 640, md: 1280, hd: 1920 };
-const TIER_W_MOBILE: Record<FrameTier, number> = { lo: 540, md: 1080, hd: 1080 };
+// Canvas pixel density cap. Higher than this costs memory without visibly
+// sharper frames; lower (the old 1.25 on phones) made the browser stretch the
+// canvas 2–2.4x on high-density screens, which is what looked blurry.
+const MAX_CANVAS_DPR = 2;
 // ---- Feel tuning ----
 // Scroll distance the 717 frames are spread over. Taller = slower animation
 // per wheel step / swipe.
@@ -65,9 +68,14 @@ const FRAME_GLIDE_MS_TOUCH = 45;
 // After this long without scroll input, settle onto the nearest whole frame.
 const SETTLE_IDLE_MS = 140;
 // ---- First-load readiness (drives the branded loading screen) ----
-// Full-resolution frames from the start of the walkthrough that must be
-// downloaded before the site is revealed, so the first scroll is sharp.
-const READY_FULL_FRAMES = 36;
+// Only what the opening of the walkthrough needs is awaited (~2.5–4 MB rather
+// than the whole keyframe set); everything else keeps streaming afterwards,
+// nearest to the scroll position first.
+// Full-resolution frames from the start that must be downloaded first.
+const READY_FULL_FRAMES = 12;
+// Low-res keyframes must cover this many opening frames (~the first screen
+// or two of scrolling) so an early fast flick never shows a stale image.
+const READY_KF_SPAN = 120;
 
 // Typical decode latency expressed in display ticks, used to lead decodes.
 const DECODE_LEAD_TICKS = 4;
@@ -86,66 +94,7 @@ interface HeroSectionProps {
 
 type FrameBitmap = ImageBitmap | HTMLImageElement;
 
-type FrameTier = "lo" | "md" | "hd";
-
-const CLOUDINARY_BASE = "https://res.cloudinary.com/ddelf4odl/image/upload";
-
-const checkIsMobile = () =>
-  typeof window !== "undefined" &&
-  (window.innerWidth <= 768 || window.innerWidth < window.innerHeight);
-
-/** Size-tiered frames from Cloudinary: fry/try/dry for desktop, mobile_frames (1st/2nd/3rd) for mobile. */
-const framePath = (index: number, tier: FrameTier, isMobile: boolean = false) => {
-  const folder = tier === "lo" ? "lo" : "hd";
-  if (isMobile) {
-    if (index < 239) {
-      const pad = String(index + 1).padStart(4, "0");
-      return `${CLOUDINARY_BASE}/mobile_frames/1st/${folder}/${pad}.webp`;
-    } else if (index < 478) {
-      const pad = String(index - 239 + 1).padStart(4, "0");
-      return `${CLOUDINARY_BASE}/mobile_frames/2nd/${folder}/${pad}.webp`;
-    } else {
-      const pad = String(index - 478 + 1).padStart(4, "0");
-      return `${CLOUDINARY_BASE}/mobile_frames/3rd/${folder}/${pad}.webp`;
-    }
-  }
-  if (index < 239) {
-    const pad = String(index + 1).padStart(4, "0");
-    return `${CLOUDINARY_BASE}/fry_frames/${folder}/${pad}.webp`;
-  } else if (index < 478) {
-    const pad = String(index - 239 + 1).padStart(4, "0");
-    return `${CLOUDINARY_BASE}/try_frames/${folder}/${pad}.webp`;
-  } else {
-    const pad = String(index - 478 + 1).padStart(4, "0");
-    return `${CLOUDINARY_BASE}/dry_frames/${folder}/${pad}.webp`;
-  }
-};
-
-/** Original full-quality render fallback. */
-const fallbackFramePath = (index: number, isMobile: boolean = false) => {
-  if (isMobile) {
-    if (index < 239) {
-      const pad = String(index + 1).padStart(4, "0");
-      return `${CLOUDINARY_BASE}/mobile_frames/1st/hd/${pad}.webp`;
-    } else if (index < 478) {
-      const pad = String(index - 239 + 1).padStart(4, "0");
-      return `${CLOUDINARY_BASE}/mobile_frames/2nd/hd/${pad}.webp`;
-    } else {
-      const pad = String(index - 478 + 1).padStart(4, "0");
-      return `${CLOUDINARY_BASE}/mobile_frames/3rd/hd/${pad}.webp`;
-    }
-  }
-  if (index < 239) {
-    const pad = String(index + 1).padStart(4, "0");
-    return `${CLOUDINARY_BASE}/fry_frames/hd/${pad}.webp`;
-  } else if (index < 478) {
-    const pad = String(index - 239 + 1).padStart(4, "0");
-    return `${CLOUDINARY_BASE}/try_frames/hd/${pad}.webp`;
-  } else {
-    const pad = String(index - 478 + 1).padStart(4, "0");
-    return `${CLOUDINARY_BASE}/dry_frames/hd/${pad}.webp`;
-  }
-};
+type FetchPriority = "high" | "low" | "auto";
 
 const bitmapW = (b: FrameBitmap) => ("naturalWidth" in b ? b.naturalWidth : b.width);
 const bitmapH = (b: FrameBitmap) => ("naturalHeight" in b ? b.naturalHeight : b.height);
@@ -326,14 +275,15 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     let currentKeyframes = 0; // keyframes decoded for the current crop
     const totalKeyframes = Math.ceil(TOTAL_FRAMES / KF_STRIDE);
 
-    // Full-size tier: chosen once at boot from the canvas size and connection.
-    let tier: FrameTier = "hd";
-
     const isMobile = checkIsMobile();
-    // Source frame dimensions: 1080x1920 (portrait) for mobile, 1920x1080 (landscape) for desktop
-    const nativeW = isMobile ? 1080 : 1920;
-    const nativeH = isMobile ? 1920 : 1080;
-    const tierW = isMobile ? TIER_W_MOBILE : TIER_W_DESKTOP;
+    // Source frame dimensions: 1080x1920 (portrait) for mobile, 1920x1080
+    // (landscape) for desktop. Full frames are always the native render; the
+    // pixel width recorded per blob must match the real file, or the crop
+    // maths samples the wrong (smaller) region and upscales it.
+    const sizes = isMobile ? FRAME_SIZE.mobile : FRAME_SIZE.desktop;
+    const nativeW = sizes.full.w;
+    const nativeH = sizes.full.h;
+    const loW = sizes.lo.w;
 
     // ---- Canvas & decode sizing ----------------------------------------
     let ctx: CanvasRenderingContext2D | null = null;
@@ -393,7 +343,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       }
       lastCanvasW = canvas.width;
       lastCanvasH = canvas.height;
-      planDecode(tierW[tier]);
+      planDecode(nativeW);
       const perFrame = outW * outH * 4;
       const maxDecoded = Math.max(12, Math.min(96, Math.floor(decodedBudgetBytes / perFrame)));
       windowAhead = Math.round(maxDecoded * 0.7);
@@ -401,11 +351,20 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     };
 
     const resizeCanvas = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, isTouch ? 1.25 : 1.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_CANVAS_DPR);
       const cssW = viewport.clientWidth || window.innerWidth;
       const cssH = viewport.clientHeight || window.innerHeight;
+      // Never exceed the source pixels actually on screen (cover crop): more
+      // canvas pixels than that only cost memory and fill rate.
+      const nativeAspect = nativeW / nativeH;
+      const cropSrcPx = cssW / cssH < nativeAspect
+        ? nativeH * nativeH * (cssW / cssH) // full height visible
+        : (nativeW * nativeW) / (cssW / cssH); // full width visible
       // Uniform cap keeps the aspect ratio intact (no CSS stretching).
-      const cap = Math.min(1, Math.sqrt(MAX_CANVAS_PIXELS / (cssW * dpr * cssH * dpr)));
+      const cap = Math.min(
+        1,
+        Math.sqrt(Math.min(MAX_CANVAS_PIXELS, cropSrcPx) / (cssW * dpr * cssH * dpr))
+      );
       const w = Math.max(1, Math.floor(cssW * dpr * cap));
       const h = Math.max(1, Math.floor(cssH * dpr * cap));
       if (canvas.width !== w || canvas.height !== h) {
@@ -463,7 +422,9 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       resolvedIsKeyframe = false;
       const full = nearestDecoded(idx);
       const fullGap = full < 0 ? Infinity : Math.abs(full - idx);
-      if (fullGap <= 1) {
+      // A sharp frame up to 2 away (imperceptible mid-scroll) beats a soft
+      // low-res keyframe, which is never more than 2 away either.
+      if (fullGap <= 2) {
         resolvedIdx = full;
         return bitmaps[full];
       }
@@ -524,9 +485,6 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     };
 
     const draw = (frameFloat: number) => {
-      const c = getCtx();
-      if (!c) return;
-
       const now = performance.now();
       const isActivelyScrolling = now - lastScrollChange < 60;
 
@@ -545,6 +503,11 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       const base = resolveSource(baseIdx);
       const resolved = resolvedIdx;
       if (!base) return; // nothing ready yet; keep last painted image
+      // The context is only created once there is a frame to paint: an opaque
+      // context turns the canvas black, which would hide the server-rendered
+      // poster underneath until then.
+      const c = getCtx();
+      if (!c) return;
       if (resolved !== baseIdx || resolvedIsKeyframe) blendIdx = -1;
 
       c.globalAlpha = 1;
@@ -658,8 +621,11 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     };
 
     // ---- Network streaming (compressed bytes only) -----------------------
-    const fetchBlob = async (url: string): Promise<Blob | null> => {
-      const res = await fetch(url, { signal: abort.signal });
+    // Same request mode as the server-rendered poster and the <link rel=preload
+    // as=fetch crossorigin> hints (CORS, anonymous), so those downloads are
+    // reused from the browser cache instead of fetched twice.
+    const fetchBlob = async (url: string, priority: FetchPriority): Promise<Blob | null> => {
+      const res = await fetch(url, { signal: abort.signal, priority } as RequestInit);
       if (!res.ok) return null;
       return res.blob();
     };
@@ -667,19 +633,19 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const fetchFrame = (idx: number) => {
       status[idx] = ST_FETCHING;
       activeFetches++;
-      let w = tierW[tier];
-      fetchBlob(framePath(idx, tier, isMobile))
+      const url = framePath(idx, "full", isMobile);
+      // Frames the playhead is about to reach outrank background streaming.
+      const near = Math.abs(idx - center) <= windowAhead;
+      const priority: FetchPriority = near ? "high" : "low";
+      fetchBlob(url, priority)
         .catch(() => null)
-        .then((blob) => {
-          if (blob) return blob;
-          w = nativeW; // original full-size render
-          return fetchBlob(fallbackFramePath(idx, isMobile)).catch(() => null);
-        })
+        // One retry for transient network/CDN errors.
+        .then((blob) => blob ?? (disposed ? null : fetchBlob(url, priority).catch(() => null)))
         .then((blob) => {
           if (disposed) return;
           if (blob) {
             blobs[idx] = blob;
-            blobW[idx] = w;
+            blobW[idx] = nativeW;
             status[idx] = ST_FETCHED;
             if (inWindow(idx)) pumpDecodes();
           } else {
@@ -730,7 +696,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       kfBusy[idx] = 1;
       activeKfJobs++;
       const g = cropGen;
-      const srcW = tierW.lo;
+      const srcW = loW;
       const srcH = Math.round((srcW * nativeH) / nativeW);
       const px = crop.w * srcW * crop.h * srcH;
       const s = px > KF_MAX_PX ? Math.sqrt(KF_MAX_PX / px) : 1;
@@ -770,7 +736,10 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     const fetchKeyframe = (idx: number) => {
       kfStatus[idx] = ST_FETCHING;
       activeKfJobs++;
-      fetchBlob(framePath(idx, "lo", isMobile))
+      // Keyframes for the opening stretch gate the reveal; the rest are a
+      // background fallback and must not slow the frames under the playhead.
+      const priority: FetchPriority = Math.abs(idx - center) < READY_KF_SPAN ? "high" : "low";
+      fetchBlob(framePath(idx, "lo", isMobile), priority)
         .catch(() => null)
         .then((blob) => {
           if (disposed) return;
@@ -804,7 +773,9 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       if (activeKfJobs >= MAX_CONCURRENT_KF_FETCHES) return;
       if (settledKfFetches >= totalKeyframes && currentKeyframes + failedKeyframes >= totalKeyframes) return;
       const k0 = center - (center % KF_STRIDE);
-      for (let d = 0; d < TOTAL_FRAMES; d += KF_STRIDE) {
+      // Until the site is revealed, spend the lane only on the opening stretch.
+      const reach = readyReported ? TOTAL_FRAMES : READY_KF_SPAN;
+      for (let d = 0; d < reach; d += KF_STRIDE) {
         if (!tryKeyframe(k0 + direction * d)) return;
         if (d > 0 && !tryKeyframe(k0 - direction * d)) return;
       }
@@ -812,23 +783,35 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
 
     // ---- First-load readiness ------------------------------------------
     // Progress (0–1) is published on window for the branded loading screen:
-    // every keyframe (so any scroll position has a sharp-enough image) plus
-    // the first READY_FULL_FRAMES full-resolution frames, and frame 0 painted.
+    // keyframes covering the opening READY_KF_SPAN frames, the first
+    // READY_FULL_FRAMES full-resolution frames, and the exact frame painted.
+    // The remaining frames keep streaming after the reveal.
     type HeroWindow = Window & { __heroProgress?: number; __heroReady?: boolean };
     const hw = window as HeroWindow;
     let readyReported = false;
     const reportReadiness = () => {
       if (readyReported) return;
-      const kf = Math.min(1, (currentKeyframes + failedKeyframes) / totalKeyframes);
+      let kfDone = 0;
+      let kfTotal = 0;
+      const k0 = center - (center % KF_STRIDE);
+      for (let k = k0; k < Math.min(TOTAL_FRAMES, k0 + READY_KF_SPAN); k += KF_STRIDE) {
+        kfTotal++;
+        // Decoded for the current crop (or undecodable), or failed to download.
+        if (kfGen[k] === cropGen || kfStatus[k] === ST_FAILED) kfDone++;
+      }
+      const kf = kfTotal ? kfDone / kfTotal : 1;
       let full = 0;
       const start = Math.max(0, Math.min(center, TOTAL_FRAMES - READY_FULL_FRAMES));
       for (let i = start; i < start + READY_FULL_FRAMES; i++) {
         if (status[i] === ST_FETCHED || status[i] === ST_FAILED) full++;
       }
       const fullP = full / READY_FULL_FRAMES;
-      const p = kf * 0.55 + fullP * 0.45;
+      const p = kf * 0.4 + fullP * 0.6;
       const ready = kf >= 1 && fullP >= 1 && shownExact;
-      if (ready) readyReported = true;
+      if (ready) {
+        readyReported = true;
+        pumpKeyframes(); // widen the keyframe lane to the whole walkthrough
+      }
       const prev = hw.__heroProgress ?? 0;
       if (ready || p - prev >= 0.01) {
         hw.__heroProgress = ready ? 1 : Math.max(prev, p);
@@ -927,21 +910,6 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     resizeCanvas();
     measure();
 
-    // Pick the full-size tier: 1920px only for large canvases on a decent link.
-    {
-      const conn = (navigator as Navigator & {
-        connection?: { saveData?: boolean; effectiveType?: string; downlink?: number };
-      }).connection;
-      const slowLink =
-        !!conn &&
-        (conn.saveData === true ||
-          /(^|-)(2g|3g)$/.test(conn.effectiveType ?? "") ||
-          (typeof conn.downlink === "number" && conn.downlink > 0 && conn.downlink < 5));
-      const coverScale = Math.max(canvas.width / nativeW, canvas.height / nativeH);
-      tier = !slowLink && coverScale > HD_TIER_ABOVE_SCALE ? "hd" : "md";
-      computeDecodeSize(); // window size depends on the tier's pixel size
-    }
-
     tick(); // establish initial centre from current scroll position
     updateOverlays(currentFrame / (TOTAL_FRAMES - 1));
     pumpKeyframes();
@@ -950,7 +918,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     gsap.ticker.add(tick);
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-    let prevIsMobile = isMobile;
+    const prevIsMobile = isMobile;
     const onResize = () => {
       measure();
       if (resizeTimer) clearTimeout(resizeTimer);
@@ -1002,6 +970,25 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
         ref={viewportRef}
         className="sticky top-0 w-full h-screen h-svh min-h-[520px] [@media(max-height:500px)]:min-h-0 overflow-hidden bg-[#1E1700]"
       >
+        {/* Server-rendered poster of the first frame: it is in the initial HTML,
+            so the browser starts downloading it before any JavaScript runs, and
+            it shows instantly until the canvas paints over it. <picture> makes
+            each device download only its own (portrait or landscape) render.
+            Same URL and CORS mode as the canvas player's fetch, so it is reused
+            from cache. */}
+        <picture>
+          <source media={MOBILE_FRAMES_MEDIA} srcSet={framePath(0, "full", true)} />
+          <img
+            src={framePath(0, "full", false)}
+            alt=""
+            aria-hidden="true"
+            crossOrigin="anonymous"
+            fetchPriority="high"
+            decoding="async"
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-cover select-none"
+          />
+        </picture>
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
 
         {/* Light, localized legibility scrim: only the bottom-left corner behind the

@@ -1,61 +1,36 @@
-"use client";
+import { preload } from "react-dom";
+import { HomeExperience } from "@/components/HomeExperience";
+import {
+  DESKTOP_FRAMES_MEDIA,
+  MOBILE_FRAMES_MEDIA,
+  SERVER_PRELOAD_FRAMES,
+  framePath,
+} from "@/lib/heroFrames";
 
-import React, { useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { CompanyStats } from "@/components/sections/CompanyStats";
-import { OwnerSection } from "@/components/sections/OwnerSection";
-import { TestimonialsSection } from "@/components/sections/TestimonialsSection";
-import { AppointmentBooking } from "@/components/sections/AppointmentBooking";
-import { Footer } from "@/components/Footer";
-import { ConsultationModal } from "@/components/forms/ConsultationModal";
-import { SiteLoader } from "@/components/SiteLoader";
-
+/**
+ * Server Component: prerendered to static HTML at build time.
+ *
+ * Besides the server-rendered markup (including the hero's first-frame
+ * poster), it puts resource hints in <head> so the walkthrough's opening frames
+ * start downloading while the HTML is still parsing, instead of only after the
+ * JavaScript bundle has loaded and hydrated (seconds later on a phone).
+ */
 export default function HomePage() {
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  // The first full-resolution frames after the poster. `media` makes each
+  // device download only its own render; `as: "fetch"` + anonymous CORS
+  // matches the player's fetch() so the preloaded bytes are reused.
+  for (let i = 1; i <= SERVER_PRELOAD_FRAMES; i++) {
+    preload(framePath(i, "full", false), {
+      as: "fetch",
+      crossOrigin: "anonymous",
+      media: DESKTOP_FRAMES_MEDIA,
+    });
+    preload(framePath(i, "full", true), {
+      as: "fetch",
+      crossOrigin: "anonymous",
+      media: MOBILE_FRAMES_MEDIA,
+    });
+  }
 
-  const handleOpenBooking = () => {
-    setIsBookingOpen(true);
-  };
-
-  const handleCloseBooking = () => {
-    setIsBookingOpen(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-[#1E1700] text-[#F4F3EA] flex flex-col selection:bg-[#BCB893]/30 selection:text-[#F4F3EA]">
-      {/* Branded first-load screen: holds until the walkthrough frames are ready */}
-      <SiteLoader />
-
-      {/* Floating Menu Icon Over Gemini Watermark */}
-      <Navbar onOpenBooking={handleOpenBooking} />
-
-      <main className="flex-1">
-        {/* 1. Slow, Pure-Smooth Cinematic Frame Walkthrough (Zero overstretching or blur) */}
-        <HeroSection onOpenBooking={handleOpenBooking} />
-
-        {/* 2. Track Record: How Many Properties Sold & 18+ Years Experience */}
-        <CompanyStats />
-
-        {/* 3. Information of the Owner & Managing Principal */}
-        <OwnerSection onOpenBooking={handleOpenBooking} />
-
-        {/* 4. Client Testimonials & Proven Acquisitions */}
-        <TestimonialsSection />
-
-        {/* 5. Book Consultation & Private Advisory Appointment */}
-        <AppointmentBooking />
-      </main>
-
-      {/* 6. Curated Luxury Footer */}
-      <Footer />
-
-      {/* Interactive Booking / Consultation Modal */}
-      <ConsultationModal
-        isOpen={isBookingOpen}
-        onClose={handleCloseBooking}
-        propertyTitle="Exclusive Portfolio Consultation"
-      />
-    </div>
-  );
+  return <HomeExperience />;
 }

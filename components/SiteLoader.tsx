@@ -15,10 +15,10 @@ import { useLenis } from "@/components/animation/SmoothScrollProvider";
 
 const BRAND = "AURELIA & CO.";
 // Minimum time on screen: a full brand moment on a first visit, a brief one after.
-const MIN_FIRST_VISIT_MS = 2000;
+const MIN_FIRST_VISIT_MS = 1600;
 const MIN_RETURN_VISIT_MS = 700;
 // Never hold the visitor longer than this, even on a very slow connection.
-const MAX_WAIT_MS = 12000;
+const MAX_WAIT_MS = 9000;
 const EXIT_MS = 1300;
 const SEEN_KEY = "aurelia:intro-seen";
 
