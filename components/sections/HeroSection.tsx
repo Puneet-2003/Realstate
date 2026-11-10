@@ -14,6 +14,7 @@ import {
   checkIsMobile,
   framePath,
 } from "@/lib/heroFrames";
+import { useLenis } from "@/components/animation/SmoothScrollProvider";
 
 /**
  * Scroll-scrubbed 717-frame cinematic hero.
@@ -225,12 +226,23 @@ const HERO_CHAPTERS: HeroChapter[] = [
 const OVERLAY_FADE = 0.028;
 const OVERLAY_DRIFT_PX = 28;
 
+// ---- Scroll feel inside the walkthrough ----
+// Touch: the page follows the finger 1:1 and stops when it lifts (the native
+// momentum fling kept scrubbing frames for a second or more after release, and
+// outran the frame decoder, which made the sequence stutter). Lenis glide after
+// release is |velocity|^exponent px; 0 => ~1px, i.e. a dead stop.
+const HERO_TOUCH_INERTIA_EXPONENT = 0;
+// Wheel: shorter smoothing tail than the rest of the site, so the frames
+// settle right after the wheel stops instead of drifting on.
+const HERO_WHEEL_DURATION = 0.45;
+
 export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const chapterRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const lenisCtx = useLenis();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -939,12 +951,45 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
     ro?.observe(document.body);
     window.addEventListener("resize", onResize, { passive: true });
 
+    // ---- Scroll feel: switch Lenis per gesture while inside the walkthrough --
+    // Lenis reads these options on every input event, so they are set in a
+    // capture-phase listener that runs just before Lenis sees the gesture.
+    // Outside the hero the site keeps its normal feel (native touch momentum).
+    let siteDefaults: { syncTouch: boolean; touchInertiaExponent: number; duration?: number } | null = null;
+    const inHero = () => {
+      const y = window.scrollY;
+      return y >= containerTop - 2 && y <= containerTop + scrollable + 2;
+    };
+    const applyScrollFeel = () => {
+      const lenis = lenisCtx.lenis;
+      if (!lenis || reducedMotion) return;
+      const o = lenis.options;
+      if (!siteDefaults) {
+        siteDefaults = {
+          syncTouch: o.syncTouch,
+          touchInertiaExponent: o.touchInertiaExponent,
+          duration: o.duration,
+        };
+      }
+      const hero = inHero();
+      o.syncTouch = hero ? true : siteDefaults.syncTouch;
+      o.touchInertiaExponent = hero ? HERO_TOUCH_INERTIA_EXPONENT : siteDefaults.touchInertiaExponent;
+      o.duration = hero ? HERO_WHEEL_DURATION : siteDefaults.duration;
+    };
+    const feelOpts: AddEventListenerOptions = { capture: true, passive: true };
+    window.addEventListener("touchstart", applyScrollFeel, feelOpts);
+    window.addEventListener("wheel", applyScrollFeel, feelOpts);
+
     return () => {
       disposed = true;
       abort.abort();
       gsap.ticker.remove(tick);
       ro?.disconnect();
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("touchstart", applyScrollFeel, feelOpts);
+      window.removeEventListener("wheel", applyScrollFeel, feelOpts);
+      const lenis = lenisCtx.lenis;
+      if (lenis && siteDefaults) Object.assign(lenis.options, siteDefaults);
       if (resizeTimer) clearTimeout(resizeTimer);
       for (let i = 0; i < TOTAL_FRAMES; i++) {
         releaseBitmap(bitmaps[i]);
@@ -956,7 +1001,7 @@ export function HeroSection({ onOpenBooking }: HeroSectionProps = {}) {
       }
       decodedIndices.clear();
     };
-  }, []);
+  }, [lenisCtx]);
 
   return (
     <section
